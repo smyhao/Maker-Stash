@@ -22,6 +22,8 @@ def list_items(
     q: str | None = None,
     category: str | None = None,
     location: str | None = None,
+    tag: str | None = None,
+    status: str | None = None,
     need_restock: bool | None = None,
     favorite: bool | None = None,
     include_archived: bool = False,
@@ -35,6 +37,8 @@ def list_items(
         q,
         category,
         location,
+        tag,
+        status,
         need_restock,
         favorite,
         include_archived,
@@ -42,7 +46,7 @@ def list_items(
         page_size=bounded_page_size,
     )
     data = [ItemRead.model_validate(item).model_dump() for item in items]
-    total = service.count(q, category, location, need_restock, favorite, include_archived)
+    total = service.count(q, category, location, tag, status, need_restock, favorite, include_archived)
     return ok({"items": data, "total": total, "page": max(page, 1), "page_size": bounded_page_size})
 
 
@@ -125,7 +129,20 @@ def unfavorite(id_or_code: str, db: Session = Depends(get_db)) -> dict:
 @router.get("/{id_or_code}/notes")
 def list_notes(id_or_code: str, db: Session = Depends(get_db)) -> dict:
     notes = ItemService(db).notes(id_or_code)
-    return ok({"notes": [{"id": note.id, "content": note.content, "note_type": note.note_type, "source": note.source, "created_at": note.created_at} for note in notes]})
+    return ok({"notes": [
+        {
+            "id": note.id,
+            "content": note.content,
+            "note_type": note.note_type,
+            "quantity_change": str(note.quantity_change) if note.quantity_change is not None else None,
+            "quantity_after": str(note.quantity_after) if note.quantity_after is not None else None,
+            "source": note.source,
+            "operator": note.operator,
+            "metadata_json": note.metadata_json,
+            "created_at": note.created_at,
+        }
+        for note in notes
+    ]})
 
 
 @router.post("/{id_or_code}/notes")

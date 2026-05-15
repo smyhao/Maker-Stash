@@ -234,62 +234,120 @@ python stop.py
 
 ## CLI 用法
 
+下面以 `stash` 代替完整调用路径表示命令。未安装时用 `python -m app.cli.main` 代替 `stash`。
+
+### 配置
+
 ```bash
-cd backend
-
-# 配置连接
-../.venv/Scripts/python -m app.cli.main config set api_url http://127.0.0.1:8000
-../.venv/Scripts/python -m app.cli.main config set token <your-token>
-
-# 测试连接
-../.venv/Scripts/python -m app.cli.main ping
-
-# 物品管理
-../.venv/Scripts/python -m app.cli.main item list
-../.venv/Scripts/python -m app.cli.main item list --json
-../.venv/Scripts/python -m app.cli.main item show FIL-000001
-../.venv/Scripts/python -m app.cli.main item add --name "黑色 PLA" --category filament --quantity 0.42 --unit kg
-../.venv/Scripts/python -m app.cli.main item use FIL-000001 --amount 0.12 --unit kg --note "打印外壳"
-../.venv/Scripts/python -m app.cli.main item adjust FIL-000001 --quantity 0.30 --unit kg
-../.venv/Scripts/python -m app.cli.main item move FIL-000001 --to WS.DRY-A.G03
-../.venv/Scripts/python -m app.cli.main item restock FIL-000001
-../.venv/Scripts/python -m app.cli.main item favorite FIL-000001
-
-# 标签和别名
-../.venv/Scripts/python -m app.cli.main item tag ELE-000001 乐鑫 开发板
-../.venv/Scripts/python -m app.cli.main item alias ELE-000001 WiFi模块
-
-# 外部标识（二维码/NFC）
-../.venv/Scripts/python -m app.cli.main item bind ELE-000001 --type qrcode --value QR-ELE-000001
-../.venv/Scripts/python -m app.cli.main item find-id QR-ELE-000001
-
-# 位置管理
-../.venv/Scripts/python -m app.cli.main location tree
-../.venv/Scripts/python -m app.cli.main location add "A柜" --code CAB-A --parent WS --type cabinet
-
-# 搜索
-../.venv/Scripts/python -m app.cli.main search PLA
-../.venv/Scripts/python -m app.cli.main search esp --json
-
-# 属性模板
-../.venv/Scripts/python -m app.cli.main attr-def list
-../.venv/Scripts/python -m app.cli.main attr-def add --category-id 2 --name 颜色 --key color --type text
-
-# 标签管理
-../.venv/Scripts/python -m app.cli.main tag list
-
-# 备份
-../.venv/Scripts/python -m app.cli.main backup create
-../.venv/Scripts/python -m app.cli.main backup list
-../.venv/Scripts/python -m app.cli.main backup restore backup-20260514-103000
-../.venv/Scripts/python -m app.cli.main backup download backup-20260514-103000 --output backup.zip
+stash config set api_url http://127.0.0.1:8000
+stash config set token <your-token>
+stash ping                                          # 测试连接
 ```
 
-如果通过 `pip install -e .` 安装，可以直接使用 `stash` 命令：
+### 物品
 
 ```bash
-stash item list
-stash search PLA --json
+stash item list                                     # 列表（支持 --json --tag --status --category --location --restock --favorite）
+stash item show FIL-000001
+stash item add --name "黑色 PLA" --category filament --quantity 0.42 --unit kg --tag PLA --tag 黑色
+stash item add --name "ESP32" --category components --attr 型号=ESP32-S3 --attr Flash=4MB
+stash item update FIL-000001 --name "黑色 PLA 耗材" --description "打印前建议烘干"
+stash item delete FIL-000001                        # 归档
+stash item delete FIL-000001 --force                # 归档并删除附件
+stash item move FIL-000001 --to WS.DRY-A.G03
+stash item add-qty FIL-000001 --amount 1 --unit kg  # 入库
+stash item use FIL-000001 --amount 0.12 --unit kg   # 使用/出库
+stash item adjust FIL-000001 --quantity 0.30 --unit kg
+stash item restock FIL-000001
+stash item unstock FIL-000001
+stash item favorite FIL-000001
+stash item unfavorite FIL-000001
+stash item tag ELE-000001 乐鑫 开发板
+stash item untag ELE-000001 乐鑫
+stash item alias ELE-000001 WiFi模块
+stash item unalias ELE-000001 WiFi模块
+stash item notes FIL-000001
+stash item add-note FIL-000001 "打印前建议烘干 4 小时"
+```
+
+### 标签、别名、外部标识
+
+```bash
+stash tag list
+stash tag add PLA
+stash tag delete 3
+stash item bind ELE-000001 --type qrcode --value QR-ELE-000001
+stash item unbind ELE-000001 5
+stash item find-id QR-ELE-000001
+```
+
+### 分类
+
+```bash
+stash category list
+stash category tree
+stash category add "树脂材料" --slug resin --prefix RES
+stash category update 3 --name "3D打印耗材"
+stash category delete 7
+```
+
+### 位置
+
+```bash
+stash location list
+stash location tree
+stash location show WS.CAB-A                        # 按 full_code 查看
+stash location show 2                               # 按 ID 查看
+stash location add "A柜" --code CAB-A --parent WS --type cabinet
+stash location update 2 --name "A号柜" --description "常放耗材"
+stash location delete 5
+stash location items WS.CAB-A                       # 查看某位置下所有物品
+```
+
+### 属性模板
+
+```bash
+stash attr-def list
+stash attr-def list --category-id 2
+stash attr-def add --category-id 2 --name 颜色 --key color --type text
+stash attr-def update 5 --name 耗材颜色 --unit 色
+stash attr-def delete 5
+```
+
+### 图片和附件
+
+```bash
+stash image-add FIL-000001 ./pla.jpg --cover
+stash file-add ELE-000001 ./datasheet.pdf
+stash file-list ELE-000001
+stash file-delete 18
+```
+
+### 搜索
+
+```bash
+stash search PLA
+stash search esp --category components --json
+stash search 螺丝 --location WS.CAB-A
+stash search 乐鑫 --tag
+```
+
+搜索覆盖 10 个维度：名称、编号、描述、分类、位置、标签、别名、备注、属性、附件名。
+
+### 备份
+
+```bash
+stash backup create
+stash backup create --note "修改分类前备份"
+stash backup list
+stash backup restore backup-20260514-103000
+stash backup download backup-20260514-103000 --output backup.zip
+```
+
+### 系统
+
+```bash
+stash system info
 ```
 
 ---
@@ -308,29 +366,77 @@ stash search PLA --json
 
 核心接口：
 
+**物品**
+
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/items` | 物品列表（支持搜索/筛选/分页） |
-| POST | `/api/items` | 新增物品 |
+| GET | `/api/items` | 物品列表（支持 q/tag/status/category/location/need_restock/favorite 分页筛选） |
+| POST | `/api/items` | 新增物品（支持 tags/attributes/note） |
 | GET | `/api/items/{id_or_code}` | 物品详情 |
 | PATCH | `/api/items/{id_or_code}` | 修改物品 |
-| DELETE | `/api/items/{id_or_code}` | 归档物品 |
+| DELETE | `/api/items/{id_or_code}` | 归档物品（`?delete_attachments=true` 同时删附件） |
 | POST | `/api/items/{id}/move` | 移动位置 |
 | POST | `/api/items/{id}/add` | 入库 |
 | POST | `/api/items/{id}/use` | 使用/出库 |
 | POST | `/api/items/{id}/adjust` | 调整数量 |
 | POST | `/api/items/{id}/mark-restock` | 标记补货 |
+| POST | `/api/items/{id}/unmark-restock` | 取消补货 |
 | POST | `/api/items/{id}/favorite` | 标记常用 |
+| POST | `/api/items/{id}/unfavorite` | 取消常用 |
+| GET/POST | `/api/items/{id}/notes` | 备注列表/新增备注 |
+| GET/POST | `/api/items/{id}/tags` | 物品标签 |
+| DELETE | `/api/items/{id}/tags/{tag}` | 移除标签 |
+| GET/POST | `/api/items/{id}/aliases` | 别名列表/新增 |
+| DELETE | `/api/items/{id}/aliases/{alias}` | 删除别名 |
+| GET/POST | `/api/items/{id}/identifiers` | 外部标识 |
+| DELETE | `/api/items/{id}/identifiers/{id}` | 解绑标识 |
+| GET | `/api/items/by-identifier/{value}` | 按外部标识查找物品 |
+| GET/POST | `/api/items/{id}/attributes` | 物品属性 |
+| PATCH/DELETE | `/api/item-attributes/{id}` | 修改/删除属性 |
+
+**分类**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
 | GET | `/api/categories` `/api/categories/tree` | 分类列表/树 |
+| POST | `/api/categories` | 新增分类 |
+| PATCH/DELETE | `/api/categories/{id}` | 修改/删除分类 |
+| GET | `/api/categories/{id}/attribute-definitions` | 分类下的属性模板 |
+
+**位置**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
 | GET | `/api/locations` `/api/locations/tree` | 位置列表/树 |
-| GET | `/api/search?q=xxx` | 全局搜索 |
-| GET | `/api/tags` | 标签列表 |
-| POST | `/api/items/{id}/tags` | 添加标签 |
-| POST | `/api/items/{id}/aliases` | 添加别名 |
-| POST | `/api/items/{id}/identifiers` | 绑定外部标识 |
-| POST | `/api/items/{id}/images` | 上传图片 |
-| POST | `/api/items/{id}/attachments` | 上传附件 |
-| GET/POST | `/api/backups` | 备份列表/创建备份 |
+| POST | `/api/locations` | 新增位置 |
+| GET | `/api/locations/{id}` | 位置详情 |
+| GET | `/api/locations/{id}/items` | 位置下物品（按 ID） |
+| GET | `/api/locations/by-code/{full_code}` | 按 full_code 查位置 |
+| GET | `/api/locations/by-code/{full_code}/items` | 位置下物品（按 code） |
+| PATCH/DELETE | `/api/locations/{id}` | 修改/删除位置 |
+
+**搜索**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/search?q=xxx` | 全字段搜索（支持 category/location/tag 过滤，结果含 matched_by） |
+
+**标签、属性模板、附件、备份、系统**
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET/POST | `/api/tags` | 标签列表/新增 |
+| DELETE | `/api/tags/{id}` | 删除标签 |
+| GET/POST/PATCH/DELETE | `/api/attribute-definitions` | 属性模板 CRUD |
+| POST | `/api/items/{id}/images` | 上传图片（multipart） |
+| POST | `/api/items/{id}/attachments` | 上传附件（multipart） |
+| GET | `/api/items/{id}/attachments` | 附件列表 |
+| DELETE | `/api/attachments/{id}` | 删除附件 |
+| GET | `/api/attachments/{id}/download` | 下载附件 |
+| GET/POST | `/api/backups` | 备份列表/创建 |
+| POST | `/api/backups/{id}/restore` | 恢复备份 |
+| GET | `/api/backups/{id}/download` | 下载备份 |
+| GET | `/api/stats/overview` | 统计概览 |
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/system/info` | 系统信息 |
 

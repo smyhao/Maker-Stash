@@ -75,6 +75,14 @@ class TagService:
         self.db.execute(delete(ItemTag).where(ItemTag.item_id == item.id, ItemTag.tag_id == tag.id))
         self.db.commit()
 
+    def delete(self, tag_id: int) -> None:
+        tag = self.db.get(Tag, tag_id)
+        if tag is None:
+            raise NotFoundError("TAG_NOT_FOUND", f"标签不存在：{tag_id}")
+        self.db.execute(delete(ItemTag).where(ItemTag.tag_id == tag_id))
+        self.db.delete(tag)
+        self.db.commit()
+
 
 class AliasService:
     def __init__(self, db: Session) -> None:

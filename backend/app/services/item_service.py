@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, NotFoundError
@@ -12,9 +12,11 @@ from app.models.category import Category
 from app.models.item import Item
 from app.models.location import Location
 from app.models.note import Note
+from app.models.tag import ItemTag, Tag
 from app.schemas.item import ItemCreate, ItemMove, ItemUpdate, NoteCreate, QuantityAdd, QuantityAdjust
 from app.services.category_service import CategoryService
 from app.services.location_service import LocationService
+from app.services.search_service import fulltext_where
 
 
 class ItemService:
@@ -26,13 +28,15 @@ class ItemService:
         q: str | None = None,
         category: str | None = None,
         location: str | None = None,
+        tag: str | None = None,
+        status: str | None = None,
         need_restock: bool | None = None,
         favorite: bool | None = None,
         include_archived: bool = False,
         page: int = 1,
         page_size: int = 20,
     ) -> list[Item]:
-        stmt = self._list_stmt(q, category, location, need_restock, favorite, include_archived)
+        stmt = self._list_stmt(q, category, location, tag, status, need_restock, favorite, include_archived)
         offset = (max(page, 1) - 1) * page_size
         return list(
             self.db.scalars(
@@ -45,11 +49,13 @@ class ItemService:
         q: str | None = None,
         category: str | None = None,
         location: str | None = None,
+        tag: str | None = None,
+        status: str | None = None,
         need_restock: bool | None = None,
         favorite: bool | None = None,
         include_archived: bool = False,
     ) -> int:
-        stmt = self._list_stmt(q, category, location, need_restock, favorite, include_archived)
+        stmt = self._list_stmt(q, category, location, tag, status, need_restock, favorite, include_archived)
         return self.db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
     def _list_stmt(
@@ -57,6 +63,8 @@ class ItemService:
         q: str | None,
         category: str | None,
         location: str | None,
+        tag: str | None,
+        status: str | None,
         need_restock: bool | None,
         favorite: bool | None,
         include_archived: bool,
@@ -66,7 +74,7 @@ class ItemService:
             stmt = stmt.where(Item.is_archived.is_(False))
         if q:
             like = f"%{q}%"
-            stmt = stmt.where(or_(Item.name.like(like), Item.code.like(like), Item.description.like(like)))
+            stmt = stmt.where(fulltext_where(Item, like))
         if category:
             found = CategoryService(self.db).find_by_any(category)
             if found:
@@ -74,6 +82,16 @@ class ItemService:
         if location:
             found_location = LocationService(self.db).get_by_code(location)
             stmt = stmt.where(Item.location_id == found_location.id)
+        if tag:
+            stmt = stmt.where(
+                Item.id.in_(
+                    select(ItemTag.item_id)
+                    .join(Tag, Tag.id == ItemTag.tag_id)
+                    .where(Tag.name == tag)
+                )
+            )
+        if status:
+            stmt = stmt.where(Item.status == status)
         if need_restock is not None:
             stmt = stmt.where(Item.need_restock.is_(need_restock))
         if favorite is not None:
@@ -218,7 +236,14 @@ class ItemService:
 
     def add_note(self, id_or_code: str, payload: NoteCreate) -> Note:
         item = self.get(id_or_code)
-        note = self._add_note(item, payload.note_type, payload.content, source=payload.source)
+        note = self._add_note(
+            item,
+            payload.note_type,
+            payload.content,
+            source=payload.source,
+            operator=payload.operator,
+            metadata_json=payload.metadata_json,
+        )
         self.db.commit()
         self.db.refresh(note)
         return note
@@ -243,6 +268,8 @@ class ItemService:
         quantity_change: Decimal | None = None,
         quantity_after: Decimal | None = None,
         source: str = "api",
+        operator: str | None = None,
+        metadata_json: str | None = None,
     ) -> Note:
         note = Note(
             item_id=item.id,
@@ -251,6 +278,8 @@ class ItemService:
             quantity_change=quantity_change,
             quantity_after=quantity_after,
             source=source,
+            operator=operator,
+            metadata_json=metadata_json,
         )
         self.db.add(note)
         return note

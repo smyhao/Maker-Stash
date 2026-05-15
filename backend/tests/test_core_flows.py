@@ -199,3 +199,174 @@ def test_system_info_and_validation_error_shape() -> None:
     body = invalid_response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_tag_delete_and_item_tag_status_filters() -> None:
+    client = TestClient(create_app())
+
+    tag_response = client.post("/api/tags", json={"name": "测试标签"})
+    assert tag_response.status_code == 200
+    tag_id = tag_response.json()["data"]["id"]
+
+    item_response = client.post(
+        "/api/items",
+        json={"name": "过滤测试", "category": "tools", "tags": ["测试标签"]},
+    )
+    assert item_response.status_code == 200
+    item = item_response.json()["data"]
+
+    tagged = client.get("/api/items?tag=测试标签")
+    assert tagged.status_code == 200
+    assert any(i["code"] == item["code"] for i in tagged.json()["data"]["items"])
+
+    status_filtered = client.get("/api/items?status=normal")
+    assert status_filtered.status_code == 200
+    assert any(i["code"] == item["code"] for i in status_filtered.json()["data"]["items"])
+
+    delete_tag_response = client.delete(f"/api/tags/{tag_id}")
+    assert delete_tag_response.status_code == 200
+    assert delete_tag_response.json()["data"]["deleted"] is True
+
+
+def test_location_items_by_id() -> None:
+    client = TestClient(create_app())
+
+    loc_response = client.post(
+        "/api/locations",
+        json={"name": "过滤位置", "code": "FLT-LOC", "parent_code": "WS"},
+    )
+    assert loc_response.status_code == 200
+    loc = loc_response.json()["data"]
+
+    client.post(
+        "/api/items",
+        json={"name": "位置过滤物品", "category": "tools", "location_code": loc["full_code"]},
+    )
+
+    items_response = client.get(f"/api/locations/{loc['id']}/items")
+    assert items_response.status_code == 200
+    items = items_response.json()["data"]["items"]
+    assert len(items) >= 1
+    assert items[0]["location_id"] == loc["id"]
+
+
+def test_search_with_filters_and_rich_results() -> None:
+    client = TestClient(create_app())
+
+    client.post(
+        "/api/items",
+        json={"name": "搜索测试电阻", "category": "components", "tags": ["10k"]},
+    )
+
+    search_response = client.get("/api/search?q=搜索测试电阻")
+    assert search_response.status_code == 200
+    results = search_response.json()["data"]["items"]
+    assert len(results) >= 1
+    result = results[0]
+    assert "category_name" in result
+    assert "location_full_code" in result
+    assert "matched_by" in result
+    assert "need_restock" in result
+    assert "is_favorite" in result
+
+    filtered = client.get("/api/search?q=电阻&category=components")
+    assert filtered.status_code == 200
+    assert len(filtered.json()["data"]["items"]) >= 1
+
+
+def test_notes_with_operator_and_metadata() -> None:
+    client = TestClient(create_app())
+
+    item_response = client.post(
+        "/api/items",
+        json={"name": "备注测试", "category": "tools"},
+    )
+    item = item_response.json()["data"]
+
+    note_response = client.post(
+        f"/api/items/{item['code']}/notes",
+        json={
+            "note_type": "note",
+            "content": "带操作者的备注",
+            "source": "web",
+            "operator": "admin",
+            "metadata_json": '{"key": "value"}',
+        },
+    )
+    assert note_response.status_code == 200
+
+    notes_response = client.get(f"/api/items/{item['code']}/notes")
+    assert notes_response.status_code == 200
+    notes = notes_response.json()["data"]["notes"]
+    assert any(n["operator"] == "admin" for n in notes)
+    assert any(n["source"] == "web" for n in notes)
+    assert "quantity_change" in notes[0]
+    assert "quantity_after" in notes[0]
+    assert "metadata_json" in notes[0]
+
+
+def test_fulltext_search_covers_all_dimensions() -> None:
+    client = TestClient(create_app())
+
+    client.post("/api/locations", json={"name": "干燥柜", "code": "DRY-CAB", "parent_code": "WS"})
+
+    item_resp = client.post(
+        "/api/items",
+        json={
+            "name": "ESP32-C3",
+            "category": "components",
+            "location_code": "WS.DRY-CAB",
+            "tags": ["乐鑫"],
+            "description": "低功耗蓝牙芯片",
+        },
+    )
+    code = item_resp.json()["data"]["code"]
+
+    client.post(f"/api/items/{code}/aliases", json={"alias": "小蓝片"})
+    client.post(f"/api/items/{code}/attributes", json={"name": "封装", "key": "package", "value": "QFN32"})
+    client.post(f"/api/items/{code}/notes", json={"content": "已到货待测试", "source": "web"})
+
+    # 按名称搜索
+    assert client.get("/api/search?q=ESP32").json()["data"]["items"]
+
+    # 按别名搜索
+    results = client.get("/api/search?q=小蓝片").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # 按标签搜索
+    results = client.get("/api/search?q=乐鑫").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # 按属性搜索
+    results = client.get("/api/search?q=QFN32").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # 按备注搜索
+    results = client.get("/api/search?q=待测试").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # 按位置名称搜索
+    results = client.get("/api/search?q=干燥柜").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # 按描述搜索
+    results = client.get("/api/search?q=低功耗").json()["data"]["items"]
+    assert any(r["code"] == code for r in results)
+
+    # matched_by 标记准确
+    result = client.get("/api/search?q=小蓝片").json()["data"]["items"][0]
+    assert "alias" in result["matched_by"]
+
+
+def test_item_list_q_also_uses_fulltext() -> None:
+    client = TestClient(create_app())
+
+    client.post(
+        "/api/items",
+        json={"name": "全量搜索验证", "category": "tools", "tags": ["专用标签_xyz"]},
+    )
+
+    # 物品列表 q 参数能搜到标签
+    resp = client.get("/api/items?q=专用标签_xyz")
+    assert resp.status_code == 200
+    assert any(item["name"] == "全量搜索验证" for item in resp.json()["data"]["items"])

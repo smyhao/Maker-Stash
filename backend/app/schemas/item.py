@@ -65,6 +65,7 @@ class NoteCreate(BaseModel):
     content: str
     source: str = "api"
     operator: str | None = None
+    metadata_json: str | None = None
 
 
 class ItemRead(BaseModel):

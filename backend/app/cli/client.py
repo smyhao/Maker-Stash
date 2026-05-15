@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any
 
 import click
@@ -36,17 +37,62 @@ class CliClient:
         except httpx.HTTPError as exc:
             raise click.ClickException(f"API 请求失败：{exc}") from exc
 
-        try:
-            payload = response.json()
-        except json.JSONDecodeError as exc:
-            raise click.ClickException(f"API 返回不是 JSON：HTTP {response.status_code}") from exc
+        return _parse(response)
 
-        if not payload.get("success"):
-            error = payload.get("error") or {}
-            code = error.get("code", "API_ERROR")
-            message = error.get("message", "请求失败")
-            raise click.ClickException(f"{code}: {message}")
-        return payload.get("data")
+    def upload(
+        self,
+        path: str,
+        file_path: Path,
+        *,
+        extra_fields: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        try:
+            with file_path.open("rb") as f:
+                files = {"file": (file_path.name, f)}
+                data = extra_fields or {}
+                response = httpx.post(
+                    f"{self.api_url}{path}",
+                    files=files,
+                    data=data,
+                    headers=headers,
+                    timeout=60,
+                )
+        except httpx.HTTPError as exc:
+            raise click.ClickException(f"上传失败：{exc}") from exc
+
+        return _parse(response)
+
+    def download(self, path: str, output: Path) -> None:
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        try:
+            response = httpx.get(
+                f"{self.api_url}{path}",
+                headers=headers,
+                timeout=60,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise click.ClickException(f"下载失败：{exc}") from exc
+        output.write_bytes(response.content)
+
+
+def _parse(response: httpx.Response) -> dict[str, Any]:
+    try:
+        payload = response.json()
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"API 返回不是 JSON：HTTP {response.status_code}") from exc
+
+    if not payload.get("success"):
+        error = payload.get("error") or {}
+        code = error.get("code", "API_ERROR")
+        message = error.get("message", "请求失败")
+        raise click.ClickException(f"{code}: {message}")
+    return payload.get("data")
 
 
 def echo_json(data: Any) -> None:

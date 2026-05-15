@@ -30,6 +30,12 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db)) -> dict:
     return ok(TagRead.model_validate(tag).model_dump())
 
 
+@router.delete("/tags/{tag_id}")
+def delete_tag(tag_id: int, db: Session = Depends(get_db)) -> dict:
+    TagService(db).delete(tag_id)
+    return ok({"deleted": True})
+
+
 @router.get("/items/by-identifier/{identifier}")
 def find_item_by_identifier(identifier: str, db: Session = Depends(get_db)) -> dict:
     item = IdentifierService(db).find_item(identifier)

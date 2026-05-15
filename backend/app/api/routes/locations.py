@@ -35,6 +35,14 @@ def get_location(location_id: int, db: Session = Depends(get_db)) -> dict:
     return ok(LocationRead.model_validate(location).model_dump())
 
 
+@router.get("/{location_id}/items")
+def get_location_items_by_id(location_id: int, db: Session = Depends(get_db)) -> dict:
+    location = LocationService(db).get(location_id)
+    items = ItemService(db).list(location=location.full_code)
+    data = [ItemRead.model_validate(item).model_dump() for item in items]
+    return ok({"items": data})
+
+
 @router.get("/by-code/{full_code}")
 def get_location_by_code(full_code: str, db: Session = Depends(get_db)) -> dict:
     location = LocationService(db).get_by_code(full_code)
