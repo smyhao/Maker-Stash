@@ -21,6 +21,7 @@ import {
   toggleRestock,
   removeItemTag,
   uploadItemAttachment,
+  uploadItemImage,
   updateItemAttribute,
   useItem,
 } from '@/api/items'
@@ -357,6 +358,16 @@ export const useInventoryStore = defineStore('inventory', {
       await uploadItemAttachment(item.code, file)
       await this.loadSelectedMeta()
       await this.refreshStats()
+    },
+
+    async uploadSelectedImage(file: File) {
+      const item = this.selectedItem
+      if (!item) return
+      await uploadItemImage(item.code, file, true)
+      await this.loadItems()
+      await this.loadSelectedMeta()
+      await this.refreshStats()
+      await this.selectItem(item.code)
     },
 
     async deleteSelectedAttachment(id: number) {

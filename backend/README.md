@@ -14,7 +14,7 @@ python -m venv ..\.venv
 ..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
-`create_token` 生成的明文 Token 只会显示一次。
+`create_token` 生成的明文 Token 只会显示一次。数据库只保存 Token 哈希；如果忘记明文，需要重新创建一个 Token，并在前端「设置 → 连接」和 CLI 配置中更新。
 
 ## CLI 用法
 
@@ -102,6 +102,19 @@ python -m app.cli.main backup download backup-20260514-103000 --output backup.zi
 python -m app.cli.main system info
 ```
 
+图片和附件限制：
+
+- 单个上传文件最大 50MB，由 `app/core/config.py` 的 `max_upload_bytes` 控制。
+- 图片上传只接受 JPEG、PNG、WebP、GIF；其他文件请使用 `file-add`。
+- `image-add --cover` 会将该图片设置为物品封面。
+
+备份恢复注意事项：
+
+- `backup create` 默认包含上传文件；`--without-uploads` 只备份数据库。
+- `backup restore` 恢复前会自动创建当前状态快照。
+- 恢复会覆盖当前数据库和上传文件目录，建议先确认目标备份可下载、可离线保存。
+- 同一时间只允许一个备份或恢复任务执行；如返回 `BACKUP_IN_PROGRESS`，等待当前任务完成后重试。
+
 可通过 `pip install -e .` 安装后直接使用 `stash` 命令：
 
 ```bash
@@ -126,4 +139,5 @@ stash search PLA --json
 - 位置 `code/full_code` 第一版创建后不允许修改。
 - 删除物品默认归档；如确认同时删除附件，调用 `DELETE /api/items/{id_or_code}?delete_attachments=true`。
 - 备份恢复前会先创建当前快照。
+- 上传文件默认限制 50MB，图片 MIME 限制为 JPEG/PNG/WebP/GIF。
 - 搜索条件由 `search_service.fulltext_where()` 统一生成，物品列表和搜索接口共用。

@@ -103,10 +103,25 @@ export interface Attachment {
   item_id: number
   attachment_type: string
   original_name: string
+  stored_name?: string
   file_path: string
   mime_type: string | null
   size_bytes: number | null
+  description?: string | null
   is_cover: boolean
+  is_deleted?: boolean
+  created_at?: string
+}
+
+export interface Backup {
+  id: number
+  backup_id: string
+  file_path: string
+  size_bytes: number | null
+  include_uploads: boolean
+  note: string | null
+  status: string
+  created_at: string
 }
 
 export interface StatsOverview {

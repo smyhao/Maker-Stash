@@ -3,6 +3,8 @@ import { Boxes, MapPinned, Pencil, Plus, Trash2 } from 'lucide-vue-next'
 
 import { useInventoryStore } from '@/stores/inventory'
 import type { LocationNode } from '@/types'
+import ItemThumb from '@/components/ui/ItemThumb.vue'
+import StatusDot from '@/components/ui/StatusDot.vue'
 
 const store = useInventoryStore()
 
@@ -25,10 +27,14 @@ async function clearLocation() {
 function countFor(location: LocationNode) {
   return store.locationCounts.get(location.id) || 0
 }
+
+async function selectItem(code: string) {
+  await store.selectItem(code)
+}
 </script>
 
 <template>
-  <section class="border-t border-line px-5 py-4">
+  <section class="px-4 py-4 2xl:px-5">
     <div class="mb-4 flex items-center justify-between gap-3">
       <div class="flex items-center gap-2 text-[16px] font-semibold">
         <MapPinned :size="20" />
@@ -97,6 +103,31 @@ function countFor(location: LocationNode) {
               <dt class="text-muted">物品数</dt><dd>{{ countFor(location) }}</dd>
               <dt class="text-muted">描述</dt><dd>{{ location.description || '暂无描述' }}</dd>
             </dl>
+            <div class="mt-5 border-t border-line pt-4">
+              <div class="mb-3 flex items-center justify-between">
+                <h3 class="text-[15px] font-semibold">当前位置物品</h3>
+                <span class="text-[12px] text-muted">{{ store.items.length }} 件</span>
+              </div>
+              <div class="overflow-hidden rounded-[8px] border border-line">
+                <button
+                  v-for="item in store.items"
+                  :key="item.code"
+                  class="grid w-full grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-line px-3 py-3 text-left last:border-b-0 hover:bg-slate-50"
+                  :class="store.selectedCode === item.code ? 'bg-blue/5' : ''"
+                  @click="selectItem(item.code)"
+                >
+                  <ItemThumb :item="item" />
+                  <span class="min-w-0">
+                    <span class="block truncate text-[14px] font-medium">{{ item.name }}</span>
+                    <span class="mt-0.5 block truncate text-[12px] text-muted">{{ item.code }} · {{ item.quantity ?? '-' }} {{ item.unit || '' }}</span>
+                  </span>
+                  <StatusDot :status="item.status" />
+                </button>
+                <div v-if="!store.items.length" class="px-3 py-8 text-center text-[14px] text-muted">
+                  该位置下暂无物品
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div v-else class="grid h-full min-h-[180px] place-items-center text-center text-[14px] text-muted">

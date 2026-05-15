@@ -207,7 +207,7 @@ python -m venv .venv
 cd frontend && npm install && cd ..
 ```
 
-`create_token` 会显示一个明文 Token，只显示一次，记下来。
+`create_token` 会显示一个明文 Token，只显示一次，记下来。后端数据库只保存 Token 哈希；如果忘记明文，需要重新运行脚本创建新 Token。
 
 ### 启动
 
@@ -220,7 +220,7 @@ python start.py
 - 后端 API: http://127.0.0.1:8000
 - 前端页面: http://127.0.0.1:5173（自动打开浏览器）
 
-首次使用在前端「设置」里填入 API 地址和 Token。
+首次使用在前端「设置 → 连接」里填入 API 地址和 Token。API 地址留空时，前端会通过当前站点的 `/api` 代理访问后端。
 
 更多启动参数见 [START.md](START.md)。
 
@@ -323,6 +323,12 @@ stash file-list ELE-000001
 stash file-delete 18
 ```
 
+上传限制：
+
+- 单个文件最大 50MB，后端通过 `max_upload_bytes` 配置控制。
+- 图片接口只接受 JPEG、PNG、WebP、GIF；普通附件接口不限 MIME 类型。
+- `image-add --cover` 会把该图片标记为物品封面，前端缩略图优先使用封面。
+
 ### 搜索
 
 ```bash
@@ -343,6 +349,13 @@ stash backup list
 stash backup restore backup-20260514-103000
 stash backup download backup-20260514-103000 --output backup.zip
 ```
+
+备份恢复注意事项：
+
+- `backup create` 默认包含上传文件；如只备份数据库，使用 `--without-uploads`。
+- `backup restore` 会先创建当前状态快照，再恢复目标备份。
+- 恢复会覆盖当前数据库和上传文件目录，执行前建议确认最近备份可下载。
+- 同一时间只允许一个备份或恢复任务执行；冲突时稍后重试。
 
 ### 系统
 
@@ -439,6 +452,14 @@ stash system info
 | GET | `/api/stats/overview` | 统计概览 |
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/system/info` | 系统信息 |
+
+---
+
+### API 注意事项
+
+- 所有业务 API 默认需要 `Authorization: Bearer <token>`；首次 Token 通过 `python -m app.scripts.create_token --name <name>` 创建，明文只显示一次。
+- 上传限制与 CLI 一致：单文件默认 50MB，图片 MIME 仅支持 JPEG、PNG、WebP、GIF，超限返回 `UPLOAD_TOO_LARGE`。
+- 恢复备份前后端会自动创建当前快照，但恢复动作仍会覆盖当前数据；生产使用前应先下载一份可离线保存的备份。
 
 ---
 

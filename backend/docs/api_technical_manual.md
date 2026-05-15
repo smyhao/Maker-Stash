@@ -48,6 +48,14 @@ raise NotFoundError("ITEM_NOT_FOUND", "物品不存在：FIL-999999")
 
 `app/core/security.py` 的 `require_api_token` 作为 `APIRouter` 的全局依赖。Token 通过 `Authorization: Bearer <token>` 传递，数据库只存哈希。
 
+首次部署没有 Token 时，使用脚本创建：
+
+```bash
+python -m app.scripts.create_token --name web
+```
+
+脚本输出的明文 Token 只显示一次；忘记后不能从数据库反查，只能重新创建并更新客户端配置。
+
 配置项（`.env`）：
 - `API_TOKEN_ENABLED` — 是否启用 Token 校验
 - `API_TOKEN_REQUIRE_ALL` — 为 false 时 `/api/health` 和 `/api/system/info` 免 Token
@@ -134,6 +142,13 @@ async def upload_image(
     db: Session = Depends(get_db),
 ) -> dict:
 ```
+
+上传限制：
+
+- 单个文件默认最大 50MB，由 `settings.max_upload_bytes` 控制。
+- 图片接口只允许 `image/jpeg`, `image/png`, `image/webp`, `image/gif`。
+- 普通附件接口不限制 MIME 类型，但仍受单文件大小限制。
+- 超过大小限制返回 `UPLOAD_TOO_LARGE`；图片 MIME 不支持返回 `UPLOAD_FAILED`。
 
 ### 文件下载
 
@@ -426,6 +441,8 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 
 **AttachmentRead：** `id, item_id, attachment_type, original_name, stored_name, file_path, mime_type, size_bytes, description, is_cover, is_deleted, created_at`
 
+上传约束：单文件默认 50MB；图片只支持 JPEG/PNG/WebP/GIF；`is_cover=true` 会把上传图片设置为物品封面。
+
 ### 4.11 备份 (backups)
 
 | 方法 | 路径 | 说明 |
@@ -439,6 +456,13 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 
 **BackupRead：** `id, backup_id, file_path, size_bytes, include_uploads, note, status, created_at`
 
+恢复注意事项：
+
+- `include_uploads=false` 只备份数据库，不包含 `uploads` 目录。
+- 恢复前会自动创建当前状态快照。
+- 恢复会覆盖当前数据库和上传文件目录；外部部署应先确认目标备份文件已下载或可重新获取。
+- 同一时间只允许一个备份或恢复任务执行，冲突返回 `BACKUP_IN_PROGRESS`。
+
 ---
 
 ## 5. 错误码
@@ -450,12 +474,14 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 | `LOCATION_NOT_FOUND` | 404 | 位置不存在 |
 | `TAG_NOT_FOUND` | 404 | 标签不存在 |
 | `BACKUP_NOT_FOUND` | 404 | 备份不存在 |
+| `BACKUP_IN_PROGRESS` | 409 | 已有备份或恢复任务正在执行 |
 | `INVALID_TOKEN` | 401 | Token 无效或缺失 |
 | `DUPLICATE_CODE` | 400 | 编号重复 |
 | `LOCATION_CODE_EXISTS` | 400 | 位置编号已存在 |
 | `LOCATION_NOT_EMPTY` | 400 | 位置非空，不能删除 |
 | `VALIDATION_ERROR` | 422 | 参数校验失败 |
 | `UPLOAD_FAILED` | 400 | 上传失败 |
+| `UPLOAD_TOO_LARGE` | 413 | 上传文件超过大小限制 |
 
 ---
 

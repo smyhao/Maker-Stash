@@ -114,6 +114,15 @@ client.download(f"/api/backups/{backup_id}/download", Path("backup.zip"))
 | `api_url` | 后端 API 地址 | `http://127.0.0.1:8000` |
 | `token` | API Token | 空 |
 
+首次 Token 需要在后端创建：
+
+```bash
+python -m app.scripts.create_token --name cli
+stash config set token <token>
+```
+
+脚本输出的明文 Token 只显示一次；丢失后需要重新创建。CLI 会把 Token 写入 `~/.workshop-stash/config.toml`，后续请求自动添加 `Authorization: Bearer <token>`。
+
 ### 函数
 
 ```python
@@ -339,6 +348,12 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 
 这些是顶级命令（不在 group 下），因为它们跨资源。
 
+限制与约定：
+
+- 单个上传文件默认最大 50MB，限制来自后端 `max_upload_bytes`。
+- `image-add` 只支持 JPEG、PNG、WebP、GIF；其他文件使用 `file-add`。
+- `image-add --cover` 会将上传图片设置为物品封面。
+
 ### 5.10 backup — 备份管理
 
 | 命令 | 参数/选项 | 说明 |
@@ -347,6 +362,13 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 | `backup list` | `--json` | 备份列表 |
 | `backup restore` | `<backup_id> --json` | 恢复备份 |
 | `backup download` | `<backup_id> [--output]` | 下载备份文件 |
+
+恢复注意事项：
+
+- `backup create` 默认包含上传文件；`--without-uploads` 只备份数据库。
+- `backup restore` 执行前后端会自动创建当前快照。
+- 恢复会覆盖当前数据库和上传文件目录，建议先执行 `backup download` 保存一份离线备份。
+- 如后端返回 `BACKUP_IN_PROGRESS`，说明已有备份或恢复任务在执行，稍后重试。
 
 ---
 

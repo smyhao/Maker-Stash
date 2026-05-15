@@ -91,6 +91,12 @@ export function uploadItemAttachment(code: string, file: File) {
   return uploadData<Attachment>(`/api/items/${code}/attachments`, formData)
 }
 
+export function uploadItemImage(code: string, file: File, isCover = true) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return uploadData<Attachment>(`/api/items/${code}/images?is_cover=${isCover}`, formData)
+}
+
 export function deleteAttachment(id: number) {
   return deleteData<{ deleted: boolean }>(`/api/attachments/${id}`)
 }

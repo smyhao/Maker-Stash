@@ -31,47 +31,75 @@ export function setApiConfig(apiUrl: string, token: string) {
   api.defaults.baseURL = apiUrl
 }
 
-export async function requestData<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  const response = await api.get<ApiEnvelope<T>>(url, { params })
-  const envelope = response.data
-  if (!envelope.success) {
-    throw new Error(envelope.error?.message || '请求失败')
+function apiError(error: unknown): Error {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as ApiEnvelope<unknown> | undefined
+    return new Error(data?.error?.message || error.message || '请求失败')
   }
-  return envelope.data
+  return error instanceof Error ? error : new Error('请求失败')
+}
+
+export async function requestData<T>(url: string, params?: Record<string, unknown>): Promise<T> {
+  try {
+    const response = await api.get<ApiEnvelope<T>>(url, { params })
+    const envelope = response.data
+    if (!envelope.success) {
+      throw new Error(envelope.error?.message || '请求失败')
+    }
+    return envelope.data
+  } catch (error) {
+    throw apiError(error)
+  }
 }
 
 export async function postData<T>(url: string, payload?: object): Promise<T> {
-  const response = await api.post<ApiEnvelope<T>>(url, payload)
-  const envelope = response.data
-  if (!envelope.success) {
-    throw new Error(envelope.error?.message || '请求失败')
+  try {
+    const response = await api.post<ApiEnvelope<T>>(url, payload)
+    const envelope = response.data
+    if (!envelope.success) {
+      throw new Error(envelope.error?.message || '请求失败')
+    }
+    return envelope.data
+  } catch (error) {
+    throw apiError(error)
   }
-  return envelope.data
 }
 
 export async function patchData<T>(url: string, payload?: object): Promise<T> {
-  const response = await api.patch<ApiEnvelope<T>>(url, payload)
-  const envelope = response.data
-  if (!envelope.success) {
-    throw new Error(envelope.error?.message || '请求失败')
+  try {
+    const response = await api.patch<ApiEnvelope<T>>(url, payload)
+    const envelope = response.data
+    if (!envelope.success) {
+      throw new Error(envelope.error?.message || '请求失败')
+    }
+    return envelope.data
+  } catch (error) {
+    throw apiError(error)
   }
-  return envelope.data
 }
 
 export async function deleteData<T>(url: string, params?: Record<string, unknown>): Promise<T> {
-  const response = await api.delete<ApiEnvelope<T>>(url, { params })
-  const envelope = response.data
-  if (!envelope.success) {
-    throw new Error(envelope.error?.message || '请求失败')
+  try {
+    const response = await api.delete<ApiEnvelope<T>>(url, { params })
+    const envelope = response.data
+    if (!envelope.success) {
+      throw new Error(envelope.error?.message || '请求失败')
+    }
+    return envelope.data
+  } catch (error) {
+    throw apiError(error)
   }
-  return envelope.data
 }
 
 export async function uploadData<T>(url: string, formData: FormData): Promise<T> {
-  const response = await api.post<ApiEnvelope<T>>(url, formData)
-  const envelope = response.data
-  if (!envelope.success) {
-    throw new Error(envelope.error?.message || '请求失败')
+  try {
+    const response = await api.post<ApiEnvelope<T>>(url, formData)
+    const envelope = response.data
+    if (!envelope.success) {
+      throw new Error(envelope.error?.message || '请求失败')
+    }
+    return envelope.data
+  } catch (error) {
+    throw apiError(error)
   }
-  return envelope.data
 }

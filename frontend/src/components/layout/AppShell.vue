@@ -41,6 +41,19 @@ const attributesOpen = ref(false)
 const locationDialog = ref<{ mode: 'create' | 'edit'; location: (LocationNode & { depth?: number }) | null } | null>(null)
 const moveDialogOpen = ref(false)
 const busy = ref(false)
+const viewMode = ref<'inventory' | 'locations' | 'workbench'>('inventory')
+const notice = ref<{ type: 'error' | 'success'; message: string } | null>(null)
+
+function showNotice(type: 'error' | 'success', message: string) {
+  notice.value = { type, message }
+}
+
+function setViewMode(mode: 'inventory' | 'locations' | 'workbench') {
+  viewMode.value = mode
+  if (mode === 'inventory') {
+    store.loadItems()
+  }
+}
 
 const statusText = computed(() => {
   if (store.loading) return '正在同步数据'
@@ -51,8 +64,11 @@ const statusText = computed(() => {
 async function saveItem(payload: ItemFormPayload) {
   busy.value = true
   try {
+    notice.value = null
     await store.saveItem(payload, itemDialog.value === 'edit' ? store.selectedItem?.code : undefined)
     itemDialog.value = null
+  } catch (error) {
+    showNotice('error', error instanceof Error ? error.message : '保存物品失败')
   } finally {
     busy.value = false
   }
@@ -61,12 +77,15 @@ async function saveItem(payload: ItemFormPayload) {
 async function submitQuantity(amount: number, note: string) {
   busy.value = true
   try {
+    notice.value = null
     if (quantityDialog.value === 'add') {
       await store.addQuantity(amount, note)
     } else {
       await store.useQuantity(amount, note)
     }
     quantityDialog.value = null
+  } catch (error) {
+    showNotice('error', error instanceof Error ? error.message : '调整数量失败')
   } finally {
     busy.value = false
   }
@@ -75,8 +94,11 @@ async function submitQuantity(amount: number, note: string) {
 async function deleteSelected(deleteAttachments: boolean) {
   busy.value = true
   try {
+    notice.value = null
     await store.archiveSelected(deleteAttachments)
     deleteDialogOpen.value = false
+  } catch (error) {
+    showNotice('error', error instanceof Error ? error.message : '删除物品失败')
   } finally {
     busy.value = false
   }
@@ -109,10 +131,10 @@ async function clearFilters() {
 async function runBusy(action: () => Promise<void>) {
   busy.value = true
   try {
+    notice.value = null
     await action()
   } catch (error) {
-    window.alert(error instanceof Error ? error.message : '操作失败')
-    throw error
+    showNotice('error', error instanceof Error ? error.message : '操作失败')
   } finally {
     busy.value = false
   }
@@ -169,6 +191,16 @@ async function moveSelected(locationCode: string | null, locationText: string | 
         </div>
       </header>
       <main class="thin-scrollbar flex-1 overflow-y-auto px-4 py-4">
+        <div v-if="notice" class="mb-3 rounded-[8px] border px-3 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-teal-200 bg-teal-50 text-teal'">
+          {{ notice.message }}
+        </div>
+        <LocationMap
+          v-if="viewMode === 'locations'"
+          @create="(location) => locationDialog = { mode: 'create', location }"
+          @edit="(location) => locationDialog = { mode: 'edit', location }"
+          @delete="deleteLocation"
+        />
+        <template v-else>
         <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
           <button
             class="shrink-0 rounded-[8px] border px-3 py-2 text-[14px] font-medium"
@@ -212,10 +244,11 @@ async function moveSelected(locationCode: string | null, locationText: string | 
         <div v-if="!store.items.length" class="rounded-[8px] border border-dashed border-line bg-white px-4 py-8 text-center text-[14px] text-muted">
           暂无匹配物品
         </div>
+        </template>
       </main>
       <nav class="grid h-16 grid-cols-5 border-t border-line bg-white text-[12px] text-muted">
-        <button class="grid place-items-center text-blue"><Home :size="21" />物品</button>
-        <button class="grid place-items-center" @click="store.setLocation(null); store.loadItems()"><MapPinned :size="21" />位置</button>
+        <button class="grid place-items-center" :class="viewMode === 'inventory' ? 'text-blue' : ''" @click="setViewMode('inventory')"><Home :size="21" />物品</button>
+        <button class="grid place-items-center" :class="viewMode === 'locations' ? 'text-blue' : ''" @click="setViewMode('locations')"><MapPinned :size="21" />位置</button>
         <button class="grid place-items-center" @click="itemDialog = 'create'"><Plus :size="21" />新增</button>
         <button class="grid place-items-center" :class="store.restockOnly ? 'text-amber' : ''" @click="toggleRestockFilter"><ListTodo :size="21" />补货</button>
         <button class="grid place-items-center" @click="settingsOpen = true"><Settings :size="21" />设置</button>
@@ -280,13 +313,19 @@ async function moveSelected(locationCode: string | null, locationText: string | 
       </header>
 
       <main class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-panel">
+        <div v-if="notice" class="shrink-0 border-b px-4 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-teal-200 bg-teal-50 text-teal'">
+          <div class="flex items-center justify-between gap-3">
+            <span>{{ notice.message }}</span>
+            <button class="text-current opacity-70 hover:opacity-100" @click="notice = null">关闭</button>
+          </div>
+        </div>
         <div class="shrink-0 flex min-h-[56px] flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2 2xl:px-5">
           <div class="flex h-full items-center gap-8 text-[16px] font-medium">
-            <button class="relative h-full text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue">库存</button>
-            <button class="h-full text-ink/80">位置</button>
-            <button class="h-full text-ink/80">工作台</button>
+            <button class="relative h-full" :class="viewMode === 'inventory' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('inventory')">库存</button>
+            <button class="relative h-full" :class="viewMode === 'locations' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('locations')">位置</button>
+            <button class="relative h-full" :class="viewMode === 'workbench' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('workbench')">工作台</button>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div v-if="viewMode === 'inventory'" class="flex flex-wrap items-center gap-2">
             <button class="inline-flex h-9 items-center gap-2 rounded-[6px] border border-blue/30 bg-blue/10 px-3 text-[14px] font-medium text-blue"><ListTodo :size="18" />列表</button>
             <button class="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-[6px] border border-line bg-white px-3 text-[14px] text-slate-400" disabled><Grid2X2 :size="17" />网格</button>
             <button class="h-9 rounded-[6px] border px-3 text-[13px]" :class="store.favoriteOnly ? 'border-blue bg-blue/10 text-blue' : 'border-line bg-white text-ink/80'" @click="toggleFavoriteFilter">常用</button>
@@ -296,12 +335,16 @@ async function moveSelected(locationCode: string | null, locationText: string | 
           </div>
         </div>
         <div class="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <InventoryTable />
+          <InventoryTable v-if="viewMode === 'inventory'" />
           <LocationMap
+            v-else-if="viewMode === 'locations'"
             @create="(location) => locationDialog = { mode: 'create', location }"
             @edit="(location) => locationDialog = { mode: 'edit', location }"
             @delete="deleteLocation"
           />
+          <div v-else class="grid h-full min-h-[360px] place-items-center px-6 text-center text-[14px] text-muted">
+            工作台视图待接入批量盘点、扫描和打印流程。
+          </div>
         </div>
       </main>
 
@@ -316,6 +359,7 @@ async function moveSelected(locationCode: string | null, locationText: string | 
           @edit-tags="tagsOpen = true"
           @edit-attributes="attributesOpen = true"
           @move="moveDialogOpen = true"
+          @upload-image="(file) => runBusy(() => store.uploadSelectedImage(file))"
           @upload-attachment="(file) => runBusy(() => store.uploadSelectedAttachment(file))"
           @delete-attachment="(id) => runBusy(() => store.deleteSelectedAttachment(id))"
         />

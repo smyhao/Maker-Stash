@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from zipfile import ZipFile
 
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["API_TOKEN_ENABLED"] = "false"
@@ -7,7 +8,10 @@ os.environ["API_TOKEN_ENABLED"] = "false"
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.core.config import get_settings  # noqa: E402
+from app.core.database import SessionLocal  # noqa: E402
 from app.main import create_app  # noqa: E402
+from app.services.backup_service import backup_lock  # noqa: E402
+from app.services.init_service import create_schema, init_default_data  # noqa: E402
 
 
 def test_item_location_quantity_and_search_flow() -> None:
@@ -400,3 +404,106 @@ def test_upload_limits_and_image_mime_validation(tmp_path: Path) -> None:
     finally:
         settings.upload_dir = old_upload_dir
         settings.max_upload_bytes = old_max_upload_bytes
+
+
+def test_token_management_flow() -> None:
+    client = TestClient(create_app())
+
+    created = client.post(
+        "/api/tokens",
+        json={"name": "web-test", "description": "前端测试 Token"},
+    )
+    assert created.status_code == 200
+    token_data = created.json()["data"]
+    plaintext = token_data["token"]
+    assert plaintext
+    assert token_data["name"] == "web-test"
+    assert token_data["enabled"] is True
+
+    duplicate = client.post("/api/tokens", json={"name": "web-test"})
+    assert duplicate.status_code == 400
+    assert duplicate.json()["error"]["code"] == "DUPLICATE_NAME"
+
+    listed = client.get(f"/api/tokens?current_token={plaintext}")
+    assert listed.status_code == 200
+    tokens = listed.json()["data"]["tokens"]
+    current = next(token for token in tokens if token["id"] == token_data["id"])
+    assert current["is_current"] is True
+    assert "token" not in current
+
+    updated = client.patch(
+        f"/api/tokens/{token_data['id']}",
+        json={"enabled": False, "description": "已禁用"},
+    )
+    assert updated.status_code == 200
+    assert updated.json()["data"]["enabled"] is False
+    assert updated.json()["data"]["description"] == "已禁用"
+
+    deleted = client.delete(f"/api/tokens/{token_data['id']}")
+    assert deleted.status_code == 200
+    assert deleted.json()["data"]["deleted"] is True
+
+    missing = client.patch(f"/api/tokens/{token_data['id']}", json={"enabled": True})
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "TOKEN_NOT_FOUND"
+
+
+def test_backup_create_download_restore_and_lock(tmp_path: Path) -> None:
+    settings = get_settings()
+    old_upload_dir = settings.upload_dir
+    old_backup_dir = settings.backup_dir
+    settings.upload_dir = tmp_path / "uploads"
+    settings.backup_dir = tmp_path / "backups"
+    try:
+        upload_file = settings.upload_dir / "attachments" / "datasheet.txt"
+        upload_file.parent.mkdir(parents=True, exist_ok=True)
+        upload_file.write_text("datasheet-v1", encoding="utf-8")
+
+        client = TestClient(create_app())
+
+        locked = backup_lock.acquire(blocking=False)
+        assert locked is True
+        try:
+            busy = client.post("/api/backups", json={"include_uploads": True})
+            assert busy.status_code == 409
+            assert busy.json()["error"]["code"] == "BACKUP_IN_PROGRESS"
+        finally:
+            backup_lock.release()
+
+        created = client.post(
+            "/api/backups",
+            json={"include_uploads": True, "note": "测试备份"},
+        )
+        assert created.status_code == 200
+        backup = created.json()["data"]
+        assert backup["backup_id"].startswith("backup-")
+        assert backup["include_uploads"] is True
+        assert backup["note"] == "测试备份"
+
+        backup_path = Path(backup["file_path"])
+        assert backup_path.exists()
+        with ZipFile(backup_path) as archive:
+            names = set(archive.namelist())
+        assert "uploads/attachments/datasheet.txt" in names
+
+        listed = client.get("/api/backups")
+        assert listed.status_code == 200
+        assert any(item["backup_id"] == backup["backup_id"] for item in listed.json()["data"]["backups"])
+
+        downloaded = client.get(f"/api/backups/{backup['backup_id']}/download")
+        assert downloaded.status_code == 200
+        assert downloaded.headers["content-type"] == "application/zip"
+        assert downloaded.content
+
+        upload_file.unlink()
+        restored = client.post(f"/api/backups/{backup['backup_id']}/restore")
+        assert restored.status_code == 200
+        assert restored.json()["data"]["backup_id"] == backup["backup_id"]
+        assert upload_file.read_text(encoding="utf-8") == "datasheet-v1"
+        assert any(path.name.startswith("snapshot-") for path in settings.backup_dir.glob("snapshot-*.zip"))
+    finally:
+        settings.upload_dir = old_upload_dir
+        settings.backup_dir = old_backup_dir
+        create_schema()
+        with SessionLocal() as db:
+            init_default_data(db)
