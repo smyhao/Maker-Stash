@@ -3,6 +3,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, NotFoundError
@@ -115,40 +116,48 @@ class ItemService:
             if payload.location_code
             else None
         )
-        code = self._next_code(category)
-        item = Item(
-            code=code,
-            name=payload.name,
-            category_id=category.id if category else None,
-            location_id=location.id if location else None,
-            location_text=payload.location_text,
-            quantity=payload.quantity,
-            unit=payload.unit,
-            status=payload.status,
-            description=payload.description,
-        )
-        self.db.add(item)
-        self.db.flush()
-        for attr in payload.attributes:
-            self.db.add(
-                ItemAttributeValue(
-                    item_id=item.id,
-                    name=attr.name,
-                    key=attr.key,
-                    value=attr.value,
-                    value_type=attr.value_type,
-                    unit=attr.unit,
-                )
+        last_error: IntegrityError | None = None
+        for _ in range(3):
+            code = self._next_code(category)
+            item = Item(
+                code=code,
+                name=payload.name,
+                category_id=category.id if category else None,
+                location_id=location.id if location else None,
+                location_text=payload.location_text,
+                quantity=payload.quantity,
+                unit=payload.unit,
+                status=payload.status,
+                description=payload.description,
             )
-        if payload.note:
-            self._add_note(item, "note", payload.note, source="api")
-        if payload.tags:
-            from app.services.metadata_service import TagService
+            self.db.add(item)
+            try:
+                self.db.flush()
+            except IntegrityError as exc:
+                self.db.rollback()
+                last_error = exc
+                continue
+            for attr in payload.attributes:
+                self.db.add(
+                    ItemAttributeValue(
+                        item_id=item.id,
+                        name=attr.name,
+                        key=attr.key,
+                        value=attr.value,
+                        value_type=attr.value_type,
+                        unit=attr.unit,
+                    )
+                )
+            if payload.note:
+                self._add_note(item, "note", payload.note, source="api")
+            if payload.tags:
+                from app.services.metadata_service import TagService
 
-            TagService(self.db).set_item_tags(item, payload.tags)
-        self.db.commit()
-        self.db.refresh(item)
-        return item
+                TagService(self.db).set_item_tags(item, payload.tags)
+            self.db.commit()
+            self.db.refresh(item)
+            return item
+        raise AppError("DUPLICATE_CODE", "物品编号冲突，请重试") from last_error
 
     def update(self, id_or_code: str, payload: ItemUpdate) -> Item:
         item = self.get(id_or_code)

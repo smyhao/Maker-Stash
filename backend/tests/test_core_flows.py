@@ -6,6 +6,7 @@ os.environ["API_TOKEN_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from app.core.config import get_settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 
 
@@ -38,7 +39,7 @@ def test_item_location_quantity_and_search_flow() -> None:
         json={"amount": "0.12", "unit": "kg", "note": "打印测试件"},
     )
     assert use_response.status_code == 200
-    assert use_response.json()["data"]["quantity"] == "0.300"
+    assert use_response.json()["data"]["quantity"] == "0.3"
 
     search_response = client.get("/api/search?q=PLA")
     assert search_response.status_code == 200
@@ -370,3 +371,32 @@ def test_item_list_q_also_uses_fulltext() -> None:
     resp = client.get("/api/items?q=专用标签_xyz")
     assert resp.status_code == 200
     assert any(item["name"] == "全量搜索验证" for item in resp.json()["data"]["items"])
+
+
+def test_upload_limits_and_image_mime_validation(tmp_path: Path) -> None:
+    settings = get_settings()
+    old_upload_dir = settings.upload_dir
+    old_max_upload_bytes = settings.max_upload_bytes
+    settings.upload_dir = tmp_path / "uploads"
+    settings.max_upload_bytes = 4
+    try:
+        client = TestClient(create_app())
+        item_response = client.post("/api/items", json={"name": "上传限制测试", "category": "tools"})
+        item = item_response.json()["data"]
+
+        too_large = client.post(
+            f"/api/items/{item['code']}/attachments",
+            files={"file": ("large.txt", b"12345", "text/plain")},
+        )
+        assert too_large.status_code == 413
+        assert too_large.json()["error"]["code"] == "UPLOAD_TOO_LARGE"
+
+        bad_image = client.post(
+            f"/api/items/{item['code']}/images",
+            files={"file": ("not-image.txt", b"123", "text/plain")},
+        )
+        assert bad_image.status_code == 400
+        assert bad_image.json()["error"]["code"] == "UPLOAD_FAILED"
+    finally:
+        settings.upload_dir = old_upload_dir
+        settings.max_upload_bytes = old_max_upload_bytes

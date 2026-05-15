@@ -1,16 +1,21 @@
 from datetime import datetime
 from pathlib import Path
 import shutil
+from threading import Lock
 from tempfile import TemporaryDirectory
 from zipfile import ZIP_DEFLATED, ZipFile
 
+from fastapi import status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.database import engine
-from app.core.errors import NotFoundError
+from app.core.errors import AppError, NotFoundError
 from app.models.backup import Backup
+
+
+backup_lock = Lock()
 
 
 class BackupService:
@@ -19,6 +24,14 @@ class BackupService:
         self.settings = get_settings()
 
     def create(self, include_uploads: bool = True, note: str | None = None, prefix: str = "backup") -> Backup:
+        if not backup_lock.acquire(blocking=False):
+            raise AppError("BACKUP_IN_PROGRESS", "已有备份或恢复任务正在执行", status.HTTP_409_CONFLICT)
+        try:
+            return self._create_locked(include_uploads, note, prefix)
+        finally:
+            backup_lock.release()
+
+    def _create_locked(self, include_uploads: bool = True, note: str | None = None, prefix: str = "backup") -> Backup:
         backup_dir = self.settings.backup_dir
         backup_dir.mkdir(parents=True, exist_ok=True)
         backup_id = f"{prefix}-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
@@ -62,6 +75,14 @@ class BackupService:
         return backup, path
 
     def restore(self, backup_id: str) -> Backup:
+        if not backup_lock.acquire(blocking=False):
+            raise AppError("BACKUP_IN_PROGRESS", "已有备份或恢复任务正在执行", status.HTTP_409_CONFLICT)
+        try:
+            return self._restore_locked(backup_id)
+        finally:
+            backup_lock.release()
+
+    def _restore_locked(self, backup_id: str) -> Backup:
         backup = self.db.scalar(select(Backup).where(Backup.backup_id == backup_id))
         if backup is None:
             raise NotFoundError("BACKUP_NOT_FOUND", f"备份不存在：{backup_id}")
@@ -69,7 +90,7 @@ class BackupService:
         if not backup_path.exists():
             raise NotFoundError("BACKUP_NOT_FOUND", f"备份文件不存在：{backup.file_path}")
 
-        self.create(include_uploads=True, note=f"恢复 {backup_id} 前自动快照", prefix="snapshot")
+        self._create_locked(include_uploads=True, note=f"恢复 {backup_id} 前自动快照", prefix="snapshot")
         self.db.commit()
         self.db.close()
         engine.dispose()

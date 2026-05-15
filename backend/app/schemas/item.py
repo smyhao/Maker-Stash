@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_serializer
 
 
 class AttributeInput(BaseModel):
@@ -87,3 +87,13 @@ class ItemRead(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @field_serializer("quantity")
+    @classmethod
+    def serialize_quantity(cls, v: Decimal | None) -> str | None:
+        if v is None:
+            return None
+        s = format(v, "f")
+        if "." in s:
+            s = s.rstrip("0").rstrip(".")
+        return s

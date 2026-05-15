@@ -66,7 +66,7 @@ async function downloadAttachment(attachment: Attachment) {
         <dt class="text-muted">状态</dt><dd><StatusDot :status="item.status" /></dd>
         <dt class="text-muted">标签</dt>
         <dd class="flex flex-wrap gap-2">
-          <span v-for="tag in store.selectedTags" :key="tag.id" class="rounded-[5px] border border-line px-2 py-1 text-[12px]">{{ tag.name }}</span>
+          <span v-for="tag in store.selectedTags" :key="tag.id" class="rounded-[5px] border border-blue/20 bg-blue/10 px-2 py-1 text-[12px] text-blue">{{ tag.name }}</span>
           <span v-if="!store.selectedTags.length" class="text-muted">暂无</span>
           <button class="rounded-[5px] border border-blue/30 px-2 py-1 text-[12px] text-blue" @click="emit('editTags')">编辑</button>
         </dd>

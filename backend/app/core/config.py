@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/db.sqlite3"
     upload_dir: Path = Path("./data/uploads")
     backup_dir: Path = Path("./data/backups")
+    max_upload_bytes: int = 50 * 1024 * 1024
     auth_login_enabled: bool = False
     api_token_enabled: bool = True
     api_token_require_all: bool = True

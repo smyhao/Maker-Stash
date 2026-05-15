@@ -81,11 +81,11 @@ function submit() {
       </header>
 
       <div class="space-y-4 p-5">
-        <form class="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_90px_auto]" @submit.prevent="submit">
-          <input v-model="form.name" required class="h-10 rounded-[8px] border border-line px-3 outline-none focus:border-blue" placeholder="名称" />
-          <input v-model="form.key" class="h-10 rounded-[8px] border border-line px-3 outline-none focus:border-blue" placeholder="键名" />
-          <input v-model="form.value" class="h-10 rounded-[8px] border border-line px-3 outline-none focus:border-blue" placeholder="值" />
-          <input v-model="form.unit" class="h-10 rounded-[8px] border border-line px-3 outline-none focus:border-blue" placeholder="单位" />
+        <form class="flex flex-wrap items-center gap-3" @submit.prevent="submit">
+          <input v-model="form.name" required class="h-10 flex-1 rounded-[8px] border border-line px-3 outline-none focus:border-blue min-w-[120px]" placeholder="名称" />
+          <input v-model="form.key" class="h-10 flex-1 rounded-[8px] border border-line px-3 outline-none focus:border-blue min-w-[120px]" placeholder="键名" />
+          <input v-model="form.value" class="h-10 flex-1 rounded-[8px] border border-line px-3 outline-none focus:border-blue min-w-[120px]" placeholder="值" />
+          <input v-model="form.unit" class="h-10 w-[90px] rounded-[8px] border border-line px-3 outline-none focus:border-blue" placeholder="单位" />
           <button type="submit" :disabled="busy" class="h-10 rounded-[8px] bg-blue px-4 text-[14px] font-medium text-white disabled:opacity-50">
             {{ editingId ? '更新' : '添加' }}
           </button>

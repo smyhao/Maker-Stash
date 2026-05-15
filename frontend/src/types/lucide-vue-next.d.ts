@@ -5,11 +5,14 @@ declare module 'lucide-vue-next' {
 
   export const ArrowDownToLine: LucideIcon
   export const ArrowUpFromLine: LucideIcon
+  export const AlertTriangle: LucideIcon
   export const Box: LucideIcon
   export const Boxes: LucideIcon
   export const Briefcase: LucideIcon
   export const Cable: LucideIcon
+  export const Check: LucideIcon
   export const Container: LucideIcon
+  export const Copy: LucideIcon
   export const Cpu: LucideIcon
   export const Cuboid: LucideIcon
   export const Grid2X2: LucideIcon
