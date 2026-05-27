@@ -17,7 +17,7 @@ backend/
   app/
     api/routes/     路由层，只处理请求/响应（items, categories, locations, search, metadata, attributes, attachments, backups, health, stats）
     core/           配置、数据库、安全、统一响应
-    models/         SQLAlchemy 数据模型（13 个表）
+    models/         SQLAlchemy 数据模型
     schemas/        Pydantic 请求/响应 Schema
     services/       业务逻辑层（item_service, search_service, category_service, location_service, attribute_service, metadata_service, file_service, backup_service）
     repositories/   数据访问层
@@ -34,7 +34,11 @@ frontend/
     views/          页面
     types/          TypeScript 类型
 
-prompt/start/       设计规范文档
+docs/
+  START.md          启动和局域网部署说明
+  prompts/          历史 prompt / 设计资料
+config/
+  start.example.toml 启动器配置示例
 ```
 
 ## 开发命令
@@ -94,7 +98,7 @@ CLI 客户端支持 `request()`, `upload()`, `download()` 三种操作。
 
 ## 设计文档
 
-详细设计规范见 `prompt/start/` 目录下的三个文档。
+历史设计资料见 `docs/prompts/` 目录。
 
 ## 注意事项
 

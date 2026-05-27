@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric
+from sqlalchemy import CheckConstraint, ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -9,6 +9,9 @@ from app.models.mixins import TimestampMixin
 
 class Item(TimestampMixin, Base):
     __tablename__ = "items"
+    __table_args__ = (
+        CheckConstraint("quantity IS NULL OR quantity >= 0", name="ck_items_quantity_non_negative"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(unique=True, index=True)

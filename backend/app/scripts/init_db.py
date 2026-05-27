@@ -1,9 +1,9 @@
 from app.core.database import SessionLocal
-from app.services.init_service import create_schema, init_default_data
+from app.services.init_service import init_default_data, run_migrations
 
 
 def main() -> None:
-    create_schema()
+    run_migrations()
     with SessionLocal() as db:
         init_default_data(db)
     print("Database initialized.")

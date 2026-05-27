@@ -1,0 +1,13 @@
+# Copy this file to start.toml and adjust local launcher settings.
+
+# Keep false for local-only development. Set true on Orange Pi / LAN devices.
+lan = false
+
+# Used when lan is false. Ignored when lan is true, because services bind 0.0.0.0.
+host = "127.0.0.1"
+
+backend_port = 8000
+frontend_port = 5173
+
+# Usually true on headless Linux devices.
+no_browser = false

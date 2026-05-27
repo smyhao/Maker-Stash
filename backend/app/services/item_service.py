@@ -15,7 +15,9 @@ from app.models.location import Location
 from app.models.note import Note
 from app.models.tag import ItemTag, Tag
 from app.schemas.item import ItemCreate, ItemMove, ItemUpdate, NoteCreate, QuantityAdd, QuantityAdjust
+from app.services.audit_service import AuditService, IdempotencyService, WriteContext
 from app.services.category_service import CategoryService
+from app.services.file_storage import delete_upload_relative_file
 from app.services.location_service import LocationService
 from app.services.search_service import fulltext_where
 
@@ -109,8 +111,15 @@ class ItemService:
             raise NotFoundError("ITEM_NOT_FOUND", f"物品不存在：{id_or_code}")
         return item
 
-    def create(self, payload: ItemCreate) -> Item:
+    def create(self, payload: ItemCreate, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.create")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         category = CategoryService(self.db).find_by_any(payload.category)
+        if payload.category is not None and category is None:
+            raise NotFoundError("CATEGORY_NOT_FOUND", f"分类不存在：{payload.category}")
         location = (
             LocationService(self.db).get_by_code(payload.location_code)
             if payload.location_code
@@ -149,23 +158,56 @@ class ItemService:
                     )
                 )
             if payload.note:
-                self._add_note(item, "note", payload.note, source="api")
+                self._add_note(item, "note", payload.note, source=ctx.source, operator=ctx.operator)
             if payload.tags:
                 from app.services.metadata_service import TagService
 
                 TagService(self.db).set_item_tags(item, payload.tags)
-            self.db.commit()
-            self.db.refresh(item)
+            AuditService(self.db).record(
+                ctx,
+                action="item.create",
+                target_type="item",
+                target_id=item.id,
+                before=None,
+                after=self._item_snapshot(item),
+            )
+            idempotency.remember(ctx, "item.create", "item", item.id)
+            self._finish_write(item, commit)
             return item
         raise AppError("DUPLICATE_CODE", "物品编号冲突，请重试") from last_error
 
-    def update(self, id_or_code: str, payload: ItemUpdate) -> Item:
+    def update(self, id_or_code: str, payload: ItemUpdate, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.update")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         item = self.get(id_or_code)
-        for key, value in payload.model_dump(exclude_unset=True).items():
+        before = self._item_snapshot(item)
+        data = payload.model_dump(exclude_unset=True)
+        data.pop("source", None)
+        data.pop("module", None)
+        data.pop("operator", None)
+        data.pop("request_id", None)
+        self._ensure_archived_update_allowed(item, data)
+        if "category_id" in data and data["category_id"] is not None:
+            CategoryService(self.db).get(data["category_id"])
+        if "location_id" in data and data["location_id"] is not None:
+            LocationService(self.db).get(data["location_id"])
+        for key, value in data.items():
             setattr(item, key, value)
-        self._add_note(item, "status", "修改物品基础信息", source="api")
-        self.db.commit()
-        self.db.refresh(item)
+        self.db.flush()
+        self._add_note(item, "status", "修改物品基础信息", source=ctx.source, operator=ctx.operator)
+        AuditService(self.db).record(
+            ctx,
+            action="item.update",
+            target_type="item",
+            target_id=item.id,
+            before=before,
+            after=self._item_snapshot(item),
+        )
+        idempotency.remember(ctx, "item.update", "item", item.id)
+        self._finish_write(item, commit)
         return item
 
     def archive(self, id_or_code: str, delete_attachments: bool = False) -> None:
@@ -178,11 +220,22 @@ class ItemService:
                 select(Attachment).where(Attachment.item_id == item.id)
             ).all()
             for attachment in attachments:
+                delete_upload_relative_file(attachment.file_path)
+                delete_upload_relative_file(attachment.thumbnail_path)
                 attachment.is_deleted = True
+                attachment.is_cover = False
+            item.cover_attachment_id = None
         self.db.commit()
 
-    def move(self, id_or_code: str, payload: ItemMove) -> Item:
+    def move(self, id_or_code: str, payload: ItemMove, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.move")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         item = self.get(id_or_code)
+        self._ensure_not_archived(item, "ARCHIVED_ITEM_MOVE_FORBIDDEN", "物品已归档，不能移动位置")
+        before = self._item_snapshot(item)
         location = (
             LocationService(self.db).get_by_code(payload.location_code)
             if payload.location_code
@@ -190,43 +243,127 @@ class ItemService:
         )
         item.location_id = location.id if location else None
         item.location_text = payload.location_text
-        self._add_note(item, "move", payload.note or "移动位置", source=payload.source)
-        self.db.commit()
-        self.db.refresh(item)
+        self.db.flush()
+        self._add_note(item, "move", payload.note or "移动位置", source=ctx.source, operator=ctx.operator)
+        AuditService(self.db).record(
+            ctx,
+            action="item.move",
+            target_type="item",
+            target_id=item.id,
+            before=before,
+            after=self._item_snapshot(item),
+        )
+        idempotency.remember(ctx, "item.move", "item", item.id)
+        self._finish_write(item, commit)
         return item
 
-    def add_quantity(self, id_or_code: str, payload: QuantityAdd) -> Item:
+    def add_quantity(self, id_or_code: str, payload: QuantityAdd, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.quantity.add")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         item = self.get(id_or_code)
+        self._ensure_not_archived(item, "ARCHIVED_ITEM_QUANTITY_FORBIDDEN", "物品已归档，不能变更库存")
+        before = self._item_snapshot(item)
         current = item.quantity or Decimal("0")
         item.quantity = current + payload.amount
         if payload.unit:
             item.unit = payload.unit
-        self._add_note(item, "add", payload.note or "增加数量", payload.amount, item.quantity, payload.source)
-        self.db.commit()
-        self.db.refresh(item)
+        self.db.flush()
+        self._add_note(item, "add", payload.note or "增加数量", payload.amount, item.quantity, ctx.source, ctx.operator)
+        AuditService(self.db).record(
+            ctx,
+            action="item.quantity.add",
+            target_type="item",
+            target_id=item.id,
+            before=before,
+            after=self._item_snapshot(item),
+        )
+        idempotency.remember(ctx, "item.quantity.add", "item", item.id)
+        self._finish_write(item, commit)
         return item
 
-    def use_quantity(self, id_or_code: str, payload: QuantityAdd) -> Item:
+    def use_quantity(self, id_or_code: str, payload: QuantityAdd, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.quantity.use")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         item = self.get(id_or_code)
+        self._ensure_not_archived(item, "ARCHIVED_ITEM_QUANTITY_FORBIDDEN", "物品已归档，不能变更库存")
+        before = self._item_snapshot(item)
         current = item.quantity or Decimal("0")
-        item.quantity = current - payload.amount
+        next_quantity = current - payload.amount
+        self._ensure_non_negative(next_quantity)
+        item.quantity = next_quantity
         if payload.unit:
             item.unit = payload.unit
-        self._add_note(item, "use", payload.note or "使用物品", -payload.amount, item.quantity, payload.source)
-        self.db.commit()
-        self.db.refresh(item)
+        self.db.flush()
+        self._add_note(item, "use", payload.note or "使用物品", -payload.amount, item.quantity, ctx.source, ctx.operator)
+        AuditService(self.db).record(
+            ctx,
+            action="item.quantity.use",
+            target_type="item",
+            target_id=item.id,
+            before=before,
+            after=self._item_snapshot(item),
+        )
+        idempotency.remember(ctx, "item.quantity.use", "item", item.id)
+        self._finish_write(item, commit)
         return item
 
-    def adjust_quantity(self, id_or_code: str, payload: QuantityAdjust) -> Item:
+    def adjust_quantity(self, id_or_code: str, payload: QuantityAdjust, *, commit: bool = True) -> Item:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "item.quantity.adjust")
+        if existing:
+            return self._get_item_by_id(existing.target_id)
         item = self.get(id_or_code)
+        self._ensure_not_archived(item, "ARCHIVED_ITEM_QUANTITY_FORBIDDEN", "物品已归档，不能变更库存")
+        before_snapshot = self._item_snapshot(item)
         before = item.quantity or Decimal("0")
         item.quantity = payload.quantity
         if payload.unit:
             item.unit = payload.unit
-        self._add_note(item, "adjust", payload.note or "调整数量", payload.quantity - before, item.quantity, payload.source)
-        self.db.commit()
-        self.db.refresh(item)
+        self.db.flush()
+        self._add_note(item, "adjust", payload.note or "调整数量", payload.quantity - before, item.quantity, ctx.source, ctx.operator)
+        AuditService(self.db).record(
+            ctx,
+            action="item.quantity.adjust",
+            target_type="item",
+            target_id=item.id,
+            before=before_snapshot,
+            after=self._item_snapshot(item),
+        )
+        idempotency.remember(ctx, "item.quantity.adjust", "item", item.id)
+        self._finish_write(item, commit)
         return item
+
+    def _ensure_not_archived(self, item: Item, code: str, message: str) -> None:
+        if item.is_archived:
+            raise AppError(code, message)
+
+    def _ensure_archived_update_allowed(self, item: Item, data: dict) -> None:
+        if not item.is_archived:
+            return
+        quantity_fields = {"quantity", "unit"}
+        location_fields = {"location_id", "location_text"}
+        if any(field in data and data[field] != getattr(item, field) for field in quantity_fields):
+            raise AppError("ARCHIVED_ITEM_QUANTITY_FORBIDDEN", "物品已归档，不能变更库存")
+        if any(field in data and data[field] != getattr(item, field) for field in location_fields):
+            raise AppError("ARCHIVED_ITEM_MOVE_FORBIDDEN", "物品已归档，不能移动位置")
+
+    def _ensure_non_negative(self, quantity: Decimal) -> None:
+        if quantity < 0:
+            raise AppError("NEGATIVE_QUANTITY_NOT_ALLOWED", "库存不能变为负数")
+
+    def _finish_write(self, item: Item, commit: bool) -> None:
+        if commit:
+            self.db.commit()
+            self.db.refresh(item)
+        else:
+            self.db.flush()
 
     def mark_restock(self, id_or_code: str, value: bool) -> Item:
         item = self.get(id_or_code)
@@ -268,6 +405,29 @@ class ItemService:
         )
         next_number = int(current.split("-")[-1]) + 1 if current else 1
         return f"{prefix}-{next_number:06d}"
+
+    def _get_item_by_id(self, item_id: str | int) -> Item:
+        item = self.db.get(Item, int(item_id))
+        if item is None:
+            raise NotFoundError("ITEM_NOT_FOUND", f"物品不存在：{item_id}")
+        return item
+
+    def _item_snapshot(self, item: Item) -> dict:
+        return {
+            "id": item.id,
+            "code": item.code,
+            "name": item.name,
+            "category_id": item.category_id,
+            "location_id": item.location_id,
+            "location_text": item.location_text,
+            "quantity": str(item.quantity) if item.quantity is not None else None,
+            "unit": item.unit,
+            "status": item.status,
+            "description": item.description,
+            "need_restock": item.need_restock,
+            "is_favorite": item.is_favorite,
+            "is_archived": item.is_archived,
+        }
 
     def _add_note(
         self,

@@ -16,6 +16,7 @@ class Attachment(Base):
     original_name: Mapped[str]
     stored_name: Mapped[str]
     file_path: Mapped[str]
+    thumbnail_path: Mapped[str | None]
     mime_type: Mapped[str | None]
     size_bytes: Mapped[int | None]
     description: Mapped[str | None]

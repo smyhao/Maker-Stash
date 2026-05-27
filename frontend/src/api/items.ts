@@ -106,6 +106,11 @@ export async function downloadAttachmentFile(id: number) {
   return response.data as Blob
 }
 
+export async function downloadAttachmentThumbnail(id: number) {
+  const response = await api.get(`/api/attachments/${id}/thumbnail`, { responseType: 'blob' })
+  return response.data as Blob
+}
+
 export function addItemQuantity(code: string, amount: number, unit?: string, note?: string) {
   return postData<Item>(`/api/items/${code}/add`, {
     amount,

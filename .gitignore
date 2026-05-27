@@ -2,6 +2,8 @@ __pycache__/
 *.py[cod]
 *.pyo
 .pytest_cache/
+.pytest-tmp/
+backend/.pytest-tmp/
 .mypy_cache/
 .ruff_cache/
 
@@ -10,6 +12,7 @@ venv/
 
 .env
 *.env.local
+start.toml
 
 backend/data/
 

@@ -1,0 +1,1259 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>材料位置与属性优化效果图</title>
+  <style>
+    :root {
+      --bg: #f6f7f9;
+      --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --ink: #1d2430;
+      --muted: #667085;
+      --faint: #98a2b3;
+      --line: #dde3ea;
+      --line-strong: #c7d0dc;
+      --blue: #2563eb;
+      --blue-soft: #eaf1ff;
+      --teal: #0f9488;
+      --teal-soft: #e6f6f4;
+      --amber: #b7791f;
+      --amber-soft: #fff3d6;
+      --red: #c24135;
+      --red-soft: #fff0ee;
+      --shadow: 0 18px 40px rgba(27, 36, 50, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Microsoft YaHei", sans-serif;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 216px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: #151922;
+      color: #e7ebf2;
+      padding: 22px 16px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-weight: 720;
+      font-size: 18px;
+    }
+
+    .mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 2px solid #e7ebf2;
+      border-radius: 8px;
+      font-size: 18px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 6px;
+    }
+
+    .nav button {
+      height: 40px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 12px;
+      background: transparent;
+      color: #aeb7c5;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .nav button.active {
+      background: #242b37;
+      color: #ffffff;
+    }
+
+    .main {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .topbar {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+    }
+
+    .title p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .search {
+      width: min(420px, 40vw);
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 0 13px;
+      outline: none;
+    }
+
+    .content {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: minmax(560px, 1fr) 360px;
+      gap: 18px;
+      padding: 18px;
+    }
+
+    .workspace {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      gap: 14px;
+    }
+
+    .filterbar,
+    .panel,
+    .drawer {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      box-shadow: 0 1px 2px rgba(16, 24, 40, 0.03);
+    }
+
+    .filterbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .crumbs {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .crumbs strong {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 0 11px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #ffffff;
+    }
+
+    .btn.soft {
+      border-color: #b8cdfa;
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .location-strip {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .metric b {
+      display: block;
+      margin-top: 6px;
+      font-size: 20px;
+    }
+
+    .table {
+      overflow: hidden;
+    }
+
+    .bin-map {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 260px;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .map-header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .map-header h2 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .map-header p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .map-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .grid-shell {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background:
+        linear-gradient(90deg, rgba(221, 227, 234, 0.45) 1px, transparent 1px),
+        linear-gradient(180deg, rgba(221, 227, 234, 0.45) 1px, transparent 1px),
+        #fbfcfe;
+      background-size: 28px 28px;
+      padding: 12px;
+    }
+
+    .bin-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(82px, 1fr));
+      gap: 10px;
+    }
+
+    .bin-cell {
+      position: relative;
+      min-width: 0;
+      min-height: 94px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 9px;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+
+    .bin-cell:hover {
+      border-color: #a8b9d2;
+      box-shadow: 0 8px 18px rgba(27, 36, 50, 0.08);
+      transform: translateY(-1px);
+    }
+
+    .bin-cell.selected {
+      border-color: var(--blue);
+      background: #f4f8ff;
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.18);
+    }
+
+    .bin-cell.empty {
+      border-style: dashed;
+      background: rgba(255, 255, 255, 0.68);
+      color: var(--faint);
+    }
+
+    .bin-cell.low {
+      border-color: #edc87a;
+      background: #fffbef;
+    }
+
+    .bin-cell.mixed {
+      border-color: #9fd6d0;
+      background: #f0fbfa;
+    }
+
+    .cell-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .coord {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+      font-weight: 720;
+      color: #344054;
+    }
+
+    .count {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      padding: 0 7px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .cell-name {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    .cell-meta {
+      display: block;
+      margin-top: 5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .cell-tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 9px;
+    }
+
+    .mini-tag {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      height: 20px;
+      border: 1px solid var(--line);
+      border-radius: 5px;
+      background: var(--surface);
+      padding: 0 6px;
+      color: #475467;
+      font-size: 11px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mini-tag.hot {
+      border-color: #b8cdfa;
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .mini-tag.low {
+      border-color: #f4ce8a;
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .map-detail {
+      min-width: 0;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 12px;
+    }
+
+    .map-detail h3 {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    .map-detail .sub {
+      margin: 4px 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .box-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .box-item {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      gap: 9px;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: var(--surface-soft);
+    }
+
+    .box-icon {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .box-item b,
+    .box-item span {
+      display: block;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .box-item b {
+      font-size: 12px;
+    }
+
+    .box-item span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .legend {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 3px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface);
+    }
+
+    .dot.full {
+      border-color: #9fd6d0;
+      background: var(--teal-soft);
+    }
+
+    .dot.low {
+      border-color: #edc87a;
+      background: var(--amber-soft);
+    }
+
+    .dot.empty {
+      border-style: dashed;
+      background: #ffffff;
+    }
+
+    .table-head,
+    .row {
+      display: grid;
+      grid-template-columns: minmax(190px, 1.2fr) 110px minmax(170px, 0.9fr) 108px 150px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .table-head {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--surface-soft);
+    }
+
+    .row {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      padding: 12px 14px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .row:last-child {
+      border-bottom: 0;
+    }
+
+    .row.selected {
+      background: #f4f8ff;
+      box-shadow: inset 3px 0 0 var(--blue);
+    }
+
+    .item-main {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .thumb {
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: linear-gradient(145deg, #ffffff, #eef2f7);
+      font-weight: 760;
+      font-size: 13px;
+      color: #354052;
+    }
+
+    .stack {
+      min-width: 0;
+    }
+
+    .stack b,
+    .stack span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stack b {
+      font-size: 14px;
+    }
+
+    .stack span {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .location-display {
+      min-width: 0;
+    }
+
+    .location-display .name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 0;
+      font-weight: 640;
+      font-size: 13px;
+    }
+
+    .location-display .name span {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .location-display .meta {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .location-display.unbound .name {
+      color: var(--amber);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      font-size: 12px;
+      color: #344054;
+      background: var(--surface);
+      white-space: nowrap;
+    }
+
+    .tag.low {
+      border-color: #f4ce8a;
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .tag.bound {
+      border-color: #a7ddd8;
+      background: var(--teal-soft);
+      color: var(--teal);
+    }
+
+    .tag.warn {
+      border-color: #f2b8b0;
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .detail {
+      min-width: 0;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+    }
+
+    .detail-header {
+      padding: 16px;
+    }
+
+    .detail-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .detail-title h2 {
+      margin: 0;
+      font-size: 19px;
+      line-height: 1.25;
+    }
+
+    .detail-title p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .summary div {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: var(--surface-soft);
+    }
+
+    .summary span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .summary b {
+      display: block;
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .section {
+      padding: 16px;
+    }
+
+    .section + .section {
+      border-top: 1px solid var(--line);
+    }
+
+    .section h3 {
+      margin: 0 0 12px;
+      font-size: 15px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 86px minmax(0, 1fr);
+      gap: 10px 12px;
+      font-size: 13px;
+    }
+
+    .kv dt {
+      color: var(--muted);
+    }
+
+    .kv dd {
+      margin: 0;
+      min-width: 0;
+    }
+
+    .code {
+      display: inline-flex;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: var(--surface-soft);
+      padding: 3px 6px;
+      color: #344054;
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .path {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .path span {
+      display: inline-flex;
+      align-items: center;
+      min-height: 26px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 8px;
+      background: var(--surface-soft);
+      font-size: 12px;
+    }
+
+    .attrs {
+      display: grid;
+      gap: 8px;
+    }
+
+    .attr-row {
+      display: grid;
+      grid-template-columns: 92px minmax(0, 1fr);
+      gap: 10px;
+      align-items: center;
+      min-height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 7px 9px;
+      background: var(--surface-soft);
+      font-size: 13px;
+    }
+
+    .attr-row span:first-child {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .attr-row b {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 650;
+    }
+
+    .drawer {
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .drawer h3 {
+      margin: 0 0 12px;
+      font-size: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .field label {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .field select,
+    .field input {
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 10px;
+      outline: none;
+      background: var(--surface);
+    }
+
+    .hint {
+      margin: 8px 0 14px;
+      border-left: 3px solid var(--teal);
+      background: var(--teal-soft);
+      padding: 10px 11px;
+      color: #216761;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .drawer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .mobile-title {
+      display: none;
+    }
+
+    @media (max-width: 1120px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .mobile-title {
+        display: block;
+        font-weight: 720;
+      }
+
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .detail {
+        grid-template-columns: minmax(0, 1fr) minmax(320px, 0.55fr);
+      }
+    }
+
+    @media (max-width: 780px) {
+      .topbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .search {
+        width: 100%;
+      }
+
+      .content {
+        padding: 12px;
+      }
+
+      .filterbar {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .location-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .bin-map {
+        grid-template-columns: 1fr;
+      }
+
+      .map-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .bin-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .table-head {
+        display: none;
+      }
+
+      .row {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+
+      .detail {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="mark">M</span><span>工坊物栈</span></div>
+      <nav class="nav" aria-label="主导航">
+        <button>工作台</button>
+        <button class="active">库存</button>
+        <button>位置</button>
+        <button>分类</button>
+        <button>备份</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="title">
+          <div class="mobile-title">工坊物栈</div>
+          <h1>材料位置与属性优化预览</h1>
+          <p>结构化位置、位置备注、材料关键属性分层展示，减少“只看到文本位置”的歧义。</p>
+        </div>
+        <input class="search" value="PLA WS.DRY-A 格 03" aria-label="搜索" />
+      </header>
+
+      <div class="content">
+        <section class="workspace">
+          <div class="filterbar">
+            <div class="crumbs">
+              <span>当前位置</span>
+              <strong>工坊</strong>
+              <span>/</span>
+              <strong>干燥箱 A</strong>
+              <span>/</span>
+              <strong>第三格</strong>
+            </div>
+            <div class="toolbar">
+              <button class="btn soft" type="button">包含子位置</button>
+              <button class="btn" type="button">低库存</button>
+              <button class="btn primary" type="button">新增材料</button>
+            </div>
+          </div>
+
+          <div class="location-strip" aria-label="位置概览">
+            <div class="metric"><span>绑定结构化位置</span><b>86%</b></div>
+            <div class="metric"><span>仅文本位置</span><b>7 件</b></div>
+            <div class="metric"><span>当前直接物品</span><b>12</b></div>
+            <div class="metric"><span>含子位置物品</span><b>31</b></div>
+          </div>
+
+          <section class="panel bin-map" aria-label="收纳盒格子地图">
+            <div class="map-header">
+              <div>
+                <h2>收纳盒格子地图</h2>
+                <p>当前视图：干燥箱 A / 抽屉 02。每个格位显示主物品、数量和风险状态。</p>
+              </div>
+              <div class="map-tabs">
+                <button class="btn soft" type="button">抽屉 02</button>
+                <button class="btn" type="button">抽屉 03</button>
+                <button class="btn" type="button">按占用</button>
+              </div>
+            </div>
+
+            <div class="grid-shell">
+              <div class="bin-grid">
+                <button class="bin-cell selected low" type="button">
+                  <span class="cell-top"><span class="coord">A01</span><span class="count">1 类</span></span>
+                  <span class="cell-name">黑色 PLA</span>
+                  <span class="cell-meta">0.42 kg · 余量偏低</span>
+                  <span class="cell-tags"><span class="mini-tag low">低库存</span><span class="mini-tag">1.75mm</span></span>
+                </button>
+                <button class="bin-cell mixed" type="button">
+                  <span class="cell-top"><span class="coord">A02</span><span class="count">3 类</span></span>
+                  <span class="cell-name">M3 热熔螺母</span>
+                  <span class="cell-meta">250 个 · 黄铜</span>
+                  <span class="cell-tags"><span class="mini-tag hot">常用</span><span class="mini-tag">M3</span></span>
+                </button>
+                <button class="bin-cell" type="button">
+                  <span class="cell-top"><span class="coord">A03</span><span class="count">1 类</span></span>
+                  <span class="cell-name">透明 TPU</span>
+                  <span class="cell-meta">0.80 kg · 未开封</span>
+                  <span class="cell-tags"><span class="mini-tag">95A</span><span class="mini-tag">透明</span></span>
+                </button>
+                <button class="bin-cell empty" type="button">
+                  <span class="cell-top"><span class="coord">A04</span><span class="count">空</span></span>
+                  <span class="cell-name">可用格位</span>
+                  <span class="cell-meta">建议放备用耗材</span>
+                </button>
+                <button class="bin-cell" type="button">
+                  <span class="cell-top"><span class="coord">A05</span><span class="count">2 类</span></span>
+                  <span class="cell-name">PETG-CF</span>
+                  <span class="cell-meta">1.00 kg · 黑色</span>
+                  <span class="cell-tags"><span class="mini-tag">整卷</span></span>
+                </button>
+                <button class="bin-cell empty" type="button">
+                  <span class="cell-top"><span class="coord">A06</span><span class="count">空</span></span>
+                  <span class="cell-name">可用格位</span>
+                  <span class="cell-meta">无绑定物品</span>
+                </button>
+                <button class="bin-cell mixed" type="button">
+                  <span class="cell-top"><span class="coord">B01</span><span class="count">4 类</span></span>
+                  <span class="cell-name">喷嘴套件</span>
+                  <span class="cell-meta">0.4 / 0.6 / 0.8 mm</span>
+                  <span class="cell-tags"><span class="mini-tag">配件</span></span>
+                </button>
+                <button class="bin-cell" type="button">
+                  <span class="cell-top"><span class="coord">B02</span><span class="count">1 类</span></span>
+                  <span class="cell-name">白色 PLA</span>
+                  <span class="cell-meta">0.95 kg · 新卷</span>
+                  <span class="cell-tags"><span class="mini-tag">白色</span></span>
+                </button>
+                <button class="bin-cell low" type="button">
+                  <span class="cell-top"><span class="coord">B03</span><span class="count">1 类</span></span>
+                  <span class="cell-name">红色 PETG</span>
+                  <span class="cell-meta">0.18 kg · 待补货</span>
+                  <span class="cell-tags"><span class="mini-tag low">待补货</span></span>
+                </button>
+                <button class="bin-cell empty" type="button">
+                  <span class="cell-top"><span class="coord">B04</span><span class="count">空</span></span>
+                  <span class="cell-name">可用格位</span>
+                  <span class="cell-meta">无绑定物品</span>
+                </button>
+                <button class="bin-cell" type="button">
+                  <span class="cell-top"><span class="coord">B05</span><span class="count">2 类</span></span>
+                  <span class="cell-name">干燥剂包</span>
+                  <span class="cell-meta">12 包 · 可复用</span>
+                  <span class="cell-tags"><span class="mini-tag hot">维护</span></span>
+                </button>
+                <button class="bin-cell" type="button">
+                  <span class="cell-top"><span class="coord">B06</span><span class="count">1 类</span></span>
+                  <span class="cell-name">标签纸</span>
+                  <span class="cell-meta">30 张 · 耗材</span>
+                  <span class="cell-tags"><span class="mini-tag">标签</span></span>
+                </button>
+              </div>
+            </div>
+
+            <aside class="map-detail">
+              <h3>A01 · 格 03</h3>
+              <div class="sub">绑定位置：WS.DRY-A.D02.A01</div>
+              <div class="box-list">
+                <div class="box-item">
+                  <span class="box-icon">PLA</span>
+                  <span><b>黑色 PLA 1.75mm</b><span>0.42 kg · 低库存</span></span>
+                  <span class="tag low">补</span>
+                </div>
+                <div class="box-item">
+                  <span class="box-icon">卡</span>
+                  <span><b>材料标签卡</b><span>批次 ESUN-2026-04</span></span>
+                  <span class="tag">附</span>
+                </div>
+              </div>
+              <div class="hint">
+                点击格位后，右侧详情同步切换到格内第一个物品；多物品格位用小列表展开。
+              </div>
+            </aside>
+
+            <div class="legend">
+              <span><i class="dot full"></i>有内容</span>
+              <span><i class="dot low"></i>低库存或待补货</span>
+              <span><i class="dot empty"></i>空格位</span>
+              <span><i class="dot"></i>普通格位</span>
+            </div>
+          </section>
+
+          <div class="panel table">
+            <div class="table-head">
+              <span>材料</span>
+              <span>数量</span>
+              <span>位置</span>
+              <span>状态</span>
+              <span>关键属性</span>
+            </div>
+
+            <button class="row selected" type="button">
+              <span class="item-main">
+                <span class="thumb">PLA</span>
+                <span class="stack">
+                  <b>黑色 PLA 1.75mm</b>
+                  <span>FIL-000001 · 3D打印耗材</span>
+                </span>
+              </span>
+              <span class="stack"><b>0.42 kg</b><span>余量偏低</span></span>
+              <span class="location-display">
+                <span class="name"><span>干燥箱 A</span><span class="tag bound">已绑定</span></span>
+                <span class="meta">WS.DRY-A · 格 03</span>
+              </span>
+              <span><span class="tag low">低库存</span></span>
+              <span class="stack"><b>PLA / 黑色</b><span>1.75 mm · 需烘干</span></span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="item-main">
+                <span class="thumb">M3</span>
+                <span class="stack">
+                  <b>M3 热熔螺母</b>
+                  <span>MAT-000018 · 备用材料</span>
+                </span>
+              </span>
+              <span class="stack"><b>250 个</b><span>库存正常</span></span>
+              <span class="location-display">
+                <span class="name"><span>元件柜</span><span class="tag bound">已绑定</span></span>
+                <span class="meta">WS.ELE-CAB · 零件盒 Bin 15</span>
+              </span>
+              <span><span class="tag">正常</span></span>
+              <span class="stack"><b>黄铜 / M3</b><span>外径 5mm</span></span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="item-main">
+                <span class="thumb">TPU</span>
+                <span class="stack">
+                  <b>透明 TPU 软料</b>
+                  <span>FIL-000022 · 3D打印耗材</span>
+                </span>
+              </span>
+              <span class="stack"><b>0.80 kg</b><span>未开封</span></span>
+              <span class="location-display unbound">
+                <span class="name"><span>仅文本位置</span><span class="tag warn">待规范</span></span>
+                <span class="meta">线材架 · 第二层右侧</span>
+              </span>
+              <span><span class="tag">正常</span></span>
+              <span class="stack"><b>TPU / 透明</b><span>95A · 1.75 mm</span></span>
+            </button>
+
+            <button class="row" type="button">
+              <span class="item-main">
+                <span class="thumb">PET</span>
+                <span class="stack">
+                  <b>PETG 碳纤维增强</b>
+                  <span>FIL-000031 · 3D打印耗材</span>
+                </span>
+              </span>
+              <span class="stack"><b>1.00 kg</b><span>整卷</span></span>
+              <span class="location-display">
+                <span class="name"><span>干燥箱 B</span><span class="tag bound">已绑定</span></span>
+                <span class="meta">WS.DRY-B.S02 · 左后</span>
+              </span>
+              <span><span class="tag">正常</span></span>
+              <span class="stack"><b>PETG-CF</b><span>黑色 · 磨砂</span></span>
+            </button>
+          </div>
+        </section>
+
+        <aside class="detail">
+          <section class="panel detail-header">
+            <div class="detail-title">
+              <div>
+                <h2>黑色 PLA 1.75mm</h2>
+                <p>FIL-000001 · 3D打印耗材</p>
+              </div>
+              <span class="tag low">低库存</span>
+            </div>
+            <div class="summary">
+              <div><span>数量</span><b>0.42 kg</b></div>
+              <div><span>材质</span><b>PLA</b></div>
+              <div><span>线径</span><b>1.75 mm</b></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="section">
+              <h3>位置</h3>
+              <dl class="kv">
+                <dt>结构化位置</dt>
+                <dd><strong>干燥箱 A</strong></dd>
+                <dt>位置编号</dt>
+                <dd><span class="code">WS.DRY-A</span></dd>
+                <dt>具体备注</dt>
+                <dd>格 03</dd>
+                <dt>路径</dt>
+                <dd class="path">
+                  <span>工坊</span>
+                  <span>干燥箱 A</span>
+                  <span>格位 03</span>
+                </dd>
+              </dl>
+            </div>
+
+            <div class="section">
+              <h3>材料属性摘要</h3>
+              <div class="attrs">
+                <div class="attr-row"><span>颜色</span><b>黑色</b></div>
+                <div class="attr-row"><span>净重</span><b>1 kg</b></div>
+                <div class="attr-row"><span>干燥建议</span><b>55°C / 4 小时</b></div>
+                <div class="attr-row"><span>批次</span><b>ESUN-PLA-BK-2026-04</b></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="drawer" aria-label="移动位置弹窗示例">
+            <h3>移动 / 绑定位置</h3>
+            <div class="field">
+              <label for="location">绑定位置</label>
+              <select id="location">
+                <option>工坊 / 干燥箱 A (WS.DRY-A)</option>
+                <option>工坊 / 干燥箱 B / 第二层 (WS.DRY-B.S02)</option>
+                <option>工坊 / 元件柜 (WS.ELE-CAB)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="note">位置备注</label>
+              <input id="note" value="格 03" />
+            </div>
+            <div class="hint">
+              推荐把“柜子/层架/箱体”放入结构化位置，把“格 03、左后、抽屉 02”保留为位置备注。
+            </div>
+            <div class="drawer-actions">
+              <button class="btn" type="button">取消</button>
+              <button class="btn primary" type="button">保存位置</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

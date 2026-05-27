@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.common import WriteMetadata
+
 
 class TagCreate(BaseModel):
     name: str
@@ -34,7 +36,7 @@ class AliasRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class IdentifierCreate(BaseModel):
+class IdentifierCreate(WriteMetadata):
     type: str
     value: str
     description: str | None = None

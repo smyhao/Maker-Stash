@@ -144,7 +144,7 @@ def test_image_upload_uses_httpx_post_with_file_and_cover(monkeypatch: Any, tmp_
 
     monkeypatch.setattr("app.cli.client.httpx.post", fake_post)
 
-    result = CliRunner().invoke(cli, ["image-add", "FIL-000001", str(image), "--cover"])
+    result = CliRunner().invoke(cli, ["image", "add", "FIL-000001", str(image), "--cover"])
 
     assert result.exit_code == 0
     assert calls == [
@@ -157,6 +157,24 @@ def test_image_upload_uses_httpx_post_with_file_and_cover(monkeypatch: Any, tmp_
             "timeout": 60,
         }
     ]
+
+
+def test_legacy_image_upload_command_still_works(monkeypatch: Any, tmp_path: Path) -> None:
+    use_test_config(monkeypatch)
+    image = tmp_path / "cover.png"
+    image.write_bytes(b"png-data")
+    calls: list[str] = []
+
+    def fake_post(url: str, **kwargs: Any) -> FakeResponse:
+        calls.append(url)
+        return FakeResponse({"success": True, "data": {"original_name": "cover.png"}})
+
+    monkeypatch.setattr("app.cli.client.httpx.post", fake_post)
+
+    result = CliRunner().invoke(cli, ["image-add", "FIL-000001", str(image), "--cover"])
+
+    assert result.exit_code == 0
+    assert calls == ["http://api.test/api/items/FIL-000001/images"]
 
 
 def test_backup_download_writes_response_bytes(monkeypatch: Any, tmp_path: Path) -> None:
@@ -179,5 +197,35 @@ def test_backup_download_writes_response_bytes(monkeypatch: Any, tmp_path: Path)
             "url": "http://api.test/api/backups/backup-001/download",
             "headers": {"Authorization": "Bearer cli-token"},
             "timeout": 60,
+        }
+    ]
+
+
+def test_attr_def_update_posts_required_contract(monkeypatch: Any) -> None:
+    use_test_config(monkeypatch)
+    calls: list[dict[str, Any]] = []
+
+    def fake_request(method: str, url: str, **kwargs: Any) -> FakeResponse:
+        calls.append({"method": method, "url": url, **kwargs})
+        return FakeResponse(
+            {
+                "success": True,
+                "data": {"id": 5, "key": "color", "name": "颜色", "required": False},
+            }
+        )
+
+    monkeypatch.setattr("app.cli.client.httpx.request", fake_request)
+
+    result = CliRunner().invoke(cli, ["attr-def", "update", "5", "--required", "false"])
+
+    assert result.exit_code == 0
+    assert calls == [
+        {
+            "method": "PATCH",
+            "url": "http://api.test/api/attribute-definitions/5",
+            "params": None,
+            "json": {"required": False},
+            "headers": {"Authorization": "Bearer cli-token"},
+            "timeout": 15,
         }
     ]

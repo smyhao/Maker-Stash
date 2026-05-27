@@ -456,10 +456,15 @@ def item_add_note(id_or_code: str, content: str, note_type: str, source: str) ->
     click.echo(f"已添加备注 {data.get('id')}")
 
 
-# ── image / file ────────────────────────────────────────────────────────
+# ── image / file / note ─────────────────────────────────────────────────
 
 
-@cli.command("image-add")
+@cli.group()
+def image() -> None:
+    """管理物品图片。"""
+
+
+@image.command("add")
 @click.argument("id_or_code")
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 @click.option("--cover", is_flag=True)
@@ -469,7 +474,20 @@ def image_add(id_or_code: str, file: Path, cover: bool) -> None:
     click.echo(f"已上传图片 {data.get('original_name')}")
 
 
-@cli.command("file-add")
+@cli.command("image-add", hidden=True)
+@click.argument("id_or_code")
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+@click.option("--cover", is_flag=True)
+def image_add_legacy(id_or_code: str, file: Path, cover: bool) -> None:
+    image_add.callback(id_or_code, file, cover)  # type: ignore[attr-defined]
+
+
+@cli.group("file")
+def file_group() -> None:
+    """管理物品附件。"""
+
+
+@file_group.command("add")
 @click.argument("id_or_code")
 @click.argument("file", type=click.Path(exists=True, path_type=Path))
 def file_add(id_or_code: str, file: Path) -> None:
@@ -477,7 +495,7 @@ def file_add(id_or_code: str, file: Path) -> None:
     click.echo(f"已上传附件 {data.get('original_name')}")
 
 
-@cli.command("file-list")
+@file_group.command("list")
 @click.argument("id_or_code")
 @click.option("--json-output", "--json", "as_json", is_flag=True)
 def file_list(id_or_code: str, as_json: bool) -> None:
@@ -490,11 +508,52 @@ def file_list(id_or_code: str, as_json: bool) -> None:
         click.echo(f"  {a['id']:<6} {a['attachment_type']:<10} {a['original_name']:<30} {size} bytes")
 
 
-@cli.command("file-delete")
+@file_group.command("delete")
 @click.argument("attachment_id", type=int)
 def file_delete(attachment_id: int) -> None:
     CliClient().request("DELETE", f"/api/attachments/{attachment_id}")
     click.echo(f"已删除附件 {attachment_id}")
+
+
+@cli.command("file-add", hidden=True)
+@click.argument("id_or_code")
+@click.argument("file", type=click.Path(exists=True, path_type=Path))
+def file_add_legacy(id_or_code: str, file: Path) -> None:
+    file_add.callback(id_or_code, file)  # type: ignore[attr-defined]
+
+
+@cli.command("file-list", hidden=True)
+@click.argument("id_or_code")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def file_list_legacy(id_or_code: str, as_json: bool) -> None:
+    file_list.callback(id_or_code, as_json)  # type: ignore[attr-defined]
+
+
+@cli.command("file-delete", hidden=True)
+@click.argument("attachment_id", type=int)
+def file_delete_legacy(attachment_id: int) -> None:
+    file_delete.callback(attachment_id)  # type: ignore[attr-defined]
+
+
+@cli.group()
+def note() -> None:
+    """管理物品备注。"""
+
+
+@note.command("list")
+@click.argument("id_or_code")
+@click.option("--json-output", "--json", "as_json", is_flag=True)
+def note_list(id_or_code: str, as_json: bool) -> None:
+    item_notes.callback(id_or_code, as_json)  # type: ignore[attr-defined]
+
+
+@note.command("add")
+@click.argument("id_or_code")
+@click.argument("content")
+@click.option("--type", "note_type", default="note")
+@click.option("--source", default="cli")
+def note_add(id_or_code: str, content: str, note_type: str, source: str) -> None:
+    item_add_note.callback(id_or_code, content, note_type, source)  # type: ignore[attr-defined]
 
 
 # ── tag ─────────────────────────────────────────────────────────────────
@@ -796,7 +855,7 @@ def attr_def_update(
 ) -> None:
     body: dict = {"name": name, "unit": unit}
     if is_required is not None:
-        body["is_enabled"] = True
+        body["required"] = is_required
     data = CliClient().request(
         "PATCH",
         f"/api/attribute-definitions/{definition_id}",

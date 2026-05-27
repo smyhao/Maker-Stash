@@ -15,6 +15,9 @@ def test_cli_help_includes_core_groups() -> None:
         "category",
         "attr-def",
         "system",
+        "image",
+        "file",
+        "note",
         "search",
         "config",
         "ping",
@@ -100,12 +103,46 @@ def test_system_help_includes_expected_actions() -> None:
     assert "info" in result.output
 
 
-def test_file_commands_registered() -> None:
+def test_file_and_image_commands_registered() -> None:
     result = CliRunner().invoke(cli, ["--help"])
 
     assert result.exit_code == 0
-    for name in ["image-add", "file-add", "file-list", "file-delete"]:
+    for name in ["image", "file"]:
         assert name in result.output
+
+
+def test_image_help_includes_expected_actions() -> None:
+    result = CliRunner().invoke(cli, ["image", "--help"])
+
+    assert result.exit_code == 0
+    assert "add" in result.output
+
+
+def test_file_help_includes_expected_actions() -> None:
+    result = CliRunner().invoke(cli, ["file", "--help"])
+
+    assert result.exit_code == 0
+    for command in ["add", "list", "delete"]:
+        assert command in result.output
+
+
+def test_note_help_includes_expected_actions() -> None:
+    result = CliRunner().invoke(cli, ["note", "--help"])
+
+    assert result.exit_code == 0
+    for command in ["add", "list"]:
+        assert command in result.output
+
+
+def test_legacy_flat_file_commands_are_hidden_but_available() -> None:
+    help_result = CliRunner().invoke(cli, ["--help"])
+
+    assert help_result.exit_code == 0
+    for name in ["image-add", "file-add", "file-list", "file-delete"]:
+        assert name not in help_result.output
+
+    command_result = CliRunner().invoke(cli, ["image-add", "--help"])
+    assert command_result.exit_code == 0
 
 
 def test_item_add_accepts_tag_and_attr_options() -> None:

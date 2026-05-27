@@ -295,8 +295,8 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 | `item bind` | `<id_or_code> --type --value --description` | 绑定外部标识 |
 | `item unbind` | `<id_or_code> <identifier_id>` | 解绑外部标识 |
 | `item find-id` | `<identifier> --json` | 按外部标识查找物品 |
-| `item notes` | `<id_or_code> --json` | 查看备注列表 |
-| `item add-note` | `<id_or_code> <content> --type --source` | 添加备注 |
+| `note list` | `<id_or_code> --json` | 查看备注列表 |
+| `note add` | `<id_or_code> <content> --type --source` | 添加备注 |
 
 ### 5.5 category — 分类管理
 
@@ -337,22 +337,22 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 | `attr-def update` | `<id> --name --unit --required --json` | 修改属性模板 |
 | `attr-def delete` | `<id>` | 删除属性模板 |
 
-### 5.9 图片和附件
+### 5.9 image / file — 图片和附件
 
 | 命令 | 参数/选项 | 说明 |
 |---|---|---|
-| `image-add` | `<id_or_code> <file> [--cover]` | 上传图片 |
-| `file-add` | `<id_or_code> <file>` | 上传附件 |
-| `file-list` | `<id_or_code> --json` | 附件列表 |
-| `file-delete` | `<attachment_id>` | 删除附件 |
+| `image add` | `<id_or_code> <file> [--cover]` | 上传图片 |
+| `file add` | `<id_or_code> <file>` | 上传附件 |
+| `file list` | `<id_or_code> --json` | 附件列表 |
+| `file delete` | `<attachment_id>` | 删除附件 |
 
-这些是顶级命令（不在 group 下），因为它们跨资源。
+旧版 `image-add`、`file-add`、`file-list`、`file-delete` 仍作为隐藏兼容命令保留；新文档和脚本应使用 `stash <resource> <action>` 形式。
 
 限制与约定：
 
 - 单个上传文件默认最大 50MB，限制来自后端 `max_upload_bytes`。
-- `image-add` 只支持 JPEG、PNG、WebP、GIF；其他文件使用 `file-add`。
-- `image-add --cover` 会将上传图片设置为物品封面。
+- `image add` 只支持 JPEG、PNG、WebP、GIF；其他文件使用 `file add`。
+- `image add --cover` 会将上传图片设置为物品封面。
 
 ### 5.10 backup — 备份管理
 

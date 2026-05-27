@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -53,4 +55,14 @@ def download_attachment(attachment_id: int, db: Session = Depends(get_db)) -> Fi
         path,
         media_type=attachment.mime_type,
         filename=attachment.original_name,
+    )
+
+
+@router.get("/attachments/{attachment_id}/thumbnail")
+def download_thumbnail(attachment_id: int, db: Session = Depends(get_db)) -> FileResponse:
+    attachment, path = FileService(db).get_thumbnail_path(attachment_id)
+    return FileResponse(
+        path,
+        media_type="image/jpeg",
+        filename=f"{Path(attachment.original_name).stem}-thumb.jpg",
     )

@@ -187,6 +187,7 @@ def upgrade() -> None:
         sa.Column("original_name", sa.String(), nullable=False),
         sa.Column("stored_name", sa.String(), nullable=False),
         sa.Column("file_path", sa.String(), nullable=False),
+        sa.Column("thumbnail_path", sa.String(), nullable=True),
         sa.Column("mime_type", sa.String(), nullable=True),
         sa.Column("size_bytes", sa.Integer(), nullable=True),
         sa.Column("description", sa.String(), nullable=True),

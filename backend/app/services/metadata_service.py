@@ -9,6 +9,7 @@ from app.models.identifier import Identifier
 from app.models.item import Item
 from app.models.tag import ItemTag, Tag
 from app.schemas.metadata import AliasCreate, IdentifierCreate, TagCreate
+from app.services.audit_service import AuditService, IdempotencyService, WriteContext
 from app.services.item_service import ItemService
 
 
@@ -117,6 +118,11 @@ class IdentifierService:
         self.db = db
 
     def create(self, id_or_code: str, payload: IdentifierCreate) -> Identifier:
+        ctx = WriteContext.from_payload(payload)
+        idempotency = IdempotencyService(self.db)
+        existing = idempotency.get_existing(ctx, "identifier.bind")
+        if existing:
+            return self._get_identifier_by_id(existing.target_id)
         item = ItemService(self.db).get(id_or_code)
         exists = self.db.scalar(
             select(Identifier).where(
@@ -133,6 +139,16 @@ class IdentifierService:
             description=payload.description,
         )
         self.db.add(identifier)
+        self.db.flush()
+        AuditService(self.db).record(
+            ctx,
+            action="identifier.bind",
+            target_type="identifier",
+            target_id=identifier.id,
+            before=None,
+            after=self._identifier_snapshot(identifier),
+        )
+        idempotency.remember(ctx, "identifier.bind", "identifier", identifier.id)
         self.db.commit()
         self.db.refresh(identifier)
         return identifier
@@ -155,3 +171,18 @@ class IdentifierService:
             )
         )
         self.db.commit()
+
+    def _get_identifier_by_id(self, identifier_id: str | int) -> Identifier:
+        identifier = self.db.get(Identifier, int(identifier_id))
+        if identifier is None:
+            raise NotFoundError("IDENTIFIER_NOT_FOUND", f"外部标识不存在：{identifier_id}")
+        return identifier
+
+    def _identifier_snapshot(self, identifier: Identifier) -> dict:
+        return {
+            "id": identifier.id,
+            "item_id": identifier.item_id,
+            "type": identifier.type,
+            "value": identifier.value,
+            "description": identifier.description,
+        }

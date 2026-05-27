@@ -96,6 +96,8 @@ class ItemAttributeService:
 
     def create(self, id_or_code: str, payload: ItemAttributeValueCreate) -> ItemAttributeValue:
         item = ItemService(self.db).get(id_or_code)
+        if payload.attribute_definition_id is not None:
+            AttributeDefinitionService(self.db).get(payload.attribute_definition_id)
         exists = self.db.scalar(
             select(ItemAttributeValue).where(
                 ItemAttributeValue.item_id == item.id,

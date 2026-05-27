@@ -32,6 +32,7 @@
 
 - 新增/编辑/归档物品，自动生成编号（如 `FIL-000001`）
 - 数量追踪：入库、使用、直接调整，自动记录变化
+- 归档后禁止库存和位置继续变更，避免历史记录被绕过修改
 - 状态标记：正常、少量、已用完、损坏、找不到、闲置
 - 补货标记：一键标记需要补货的物品
 - 常用收藏：快速找到常用物品
@@ -75,12 +76,20 @@ ESP32-S3：    型号=ESP32-S3  Flash=4MB  通信=Wi-Fi+BLE
 - 上传物品照片、Datasheet、说明书、发票等
 - 支持设置封面图
 - 文件存本地目录，数据库只存元信息
+- 删除附件会同步释放原文件和缩略图；删除封面会同步清空物品封面引用
 
 ### 备份 & 恢复
 
 - 一键创建备份（数据库 + 上传文件）
 - 恢复前自动创建当前快照，防止误恢复
 - 支持下载备份文件
+
+### 幂等、审计与工作流
+
+- 关键写接口支持 `request_id` / `Idempotency-Key`，重复提交不会重复创建、扣减或绑定
+- 记录轻量审计日志，追踪来源、操作者、动作和 before/after
+- 任务 API 支持长任务状态查询：`queued/running/succeeded/failed`
+- plan / confirm 工作流支持批量导入、批量出库和 Agent 操作计划；confirm 失败会回滚本次业务写入并留下 failed task
 
 ### API Token 认证
 
@@ -136,7 +145,7 @@ backend/app/
 
 ### 数据模型
 
-13 个核心表，覆盖物品管理全流程：
+18 张业务表，覆盖物品管理、审计、任务和工作流：
 
 ```
 items                    物品主表
@@ -152,6 +161,10 @@ item_attribute_values    物品自定义属性值
 backups                  备份记录
 api_tokens               API Token（哈希存储）
 system_settings          系统配置
+audit_logs               轻量审计日志
+idempotency_records      幂等记录
+task_jobs                轻量任务
+workflow_plans           plan / confirm 工作流计划
 ```
 
 ### 编号规则
@@ -222,7 +235,26 @@ python start.py
 
 首次使用在前端「设置 → 连接」里填入 API 地址和 Token。API 地址留空时，前端会通过当前站点的 `/api` 代理访问后端。
 
-更多启动参数见 [START.md](START.md)。
+Orange Pi Zero 3 等局域网设备部署时，使用：
+
+```bash
+python start.py --lan --no-browser
+```
+
+`--lan` 会绑定 `0.0.0.0`，启动日志会打印 `127.0.0.1` 和局域网 IP 访问地址。局域网访问建议打开 `http://<OrangePi局域网IP>:5173`，并让前端 API 地址保持留空；如需跨源直连 `http://<OrangePi局域网IP>:8000`，在 `backend/.env` 配置 `CORS_ALLOWED_ORIGINS=http://<OrangePi局域网IP>:5173`。
+
+端口也可以写入项目根目录的 `start.toml`：
+
+```toml
+lan = true
+backend_port = 8000
+frontend_port = 5173
+no_browser = true
+```
+
+可从 `config/start.example.toml` 复制生成；命令行参数会覆盖配置文件。
+
+更多启动参数见 [docs/START.md](docs/START.md)。
 
 ### 关闭
 
@@ -328,6 +360,8 @@ stash file-delete 18
 - 单个文件最大 50MB，后端通过 `max_upload_bytes` 配置控制。
 - 图片接口只接受 JPEG、PNG、WebP、GIF；普通附件接口不限 MIME 类型。
 - `image-add --cover` 会把该图片标记为物品封面，前端缩略图优先使用封面。
+- `file delete` 会同步删除后端上传文件；删除图片附件时也会同步删除缩略图。
+- `item delete --force` 会归档物品并释放该物品所有附件文件；不带 `--force` 只归档，不删除附件文件。
 
 ### 搜索
 
@@ -444,11 +478,17 @@ stash system info
 | POST | `/api/items/{id}/images` | 上传图片（multipart） |
 | POST | `/api/items/{id}/attachments` | 上传附件（multipart） |
 | GET | `/api/items/{id}/attachments` | 附件列表 |
-| DELETE | `/api/attachments/{id}` | 删除附件 |
+| DELETE | `/api/attachments/{id}` | 删除附件并释放文件 |
 | GET | `/api/attachments/{id}/download` | 下载附件 |
 | GET/POST | `/api/backups` | 备份列表/创建 |
 | POST | `/api/backups/{id}/restore` | 恢复备份 |
 | GET | `/api/backups/{id}/download` | 下载备份 |
+| POST | `/api/tasks` | 提交任务 |
+| GET | `/api/tasks/{task_id}` | 任务详情 |
+| GET | `/api/tasks/{task_id}/status` | 任务状态 |
+| POST | `/api/workflows/plans` | 创建 plan / dry-run |
+| GET | `/api/workflows/plans/{plan_id}` | 查询 plan 和结果 |
+| POST | `/api/workflows/plans/{plan_id}/confirm` | 基于 plan 确认执行 |
 | GET | `/api/stats/overview` | 统计概览 |
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/system/info` | 系统信息 |
@@ -458,6 +498,9 @@ stash system info
 ### API 注意事项
 
 - 所有业务 API 默认需要 `Authorization: Bearer <token>`；首次 Token 通过 `python -m app.scripts.create_token --name <name>` 创建，明文只显示一次。
+- 库存不允许为负；归档物品不能再变更库存或位置，通用 PATCH 同样受此限制。
+- 关键写接口支持 `request_id` / `Idempotency-Key` 幂等，并记录轻量审计。
+- workflow 遵循 plan / confirm；plan 只预览不落库，confirm 基于已保存计划执行，失败时回滚本次业务写入。
 - 上传限制与 CLI 一致：单文件默认 50MB，图片 MIME 仅支持 JPEG、PNG、WebP、GIF，超限返回 `UPLOAD_TOO_LARGE`。
 - 恢复备份前后端会自动创建当前快照，但恢复动作仍会覆盖当前数据；生产使用前应先下载一份可离线保存的备份。
 
@@ -493,9 +536,13 @@ Maker-Stash/
 │       ├── views/            页面
 │       ├── types/            TypeScript 类型定义
 │       └── router/           Vue Router
-├── prompt/start/             设计规范文档
+├── docs/                     项目文档和历史设计资料
+│   ├── START.md              启动和局域网部署说明
+│   ├── CLAUDE.md             AI 开发指引
+│   └── prompts/              历史 prompt / 设计资料
+├── config/                   本地配置示例
+│   └── start.example.toml    启动器配置示例
 ├── start.py / stop.py        一键启停脚本
-├── CLAUDE.md                 AI 开发指引
 └── README.md
 ```
 

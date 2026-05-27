@@ -1,7 +1,9 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
+
+from app.schemas.common import WriteMetadata
 
 
 class AttributeInput(BaseModel):
@@ -12,7 +14,7 @@ class AttributeInput(BaseModel):
     unit: str | None = None
 
 
-class ItemCreate(BaseModel):
+class ItemCreate(WriteMetadata):
     name: str
     category: str | int | None = None
     location_code: str | None = None
@@ -25,8 +27,15 @@ class ItemCreate(BaseModel):
     tags: list[str] = []
     note: str | None = None
 
+    @field_validator("quantity")
+    @classmethod
+    def quantity_must_not_be_negative(cls, value: Decimal | None) -> Decimal | None:
+        if value is not None and value < 0:
+            raise ValueError("数量不能为负")
+        return value
 
-class ItemUpdate(BaseModel):
+
+class ItemUpdate(WriteMetadata):
     name: str | None = None
     category_id: int | None = None
     location_id: int | None = None
@@ -38,33 +47,49 @@ class ItemUpdate(BaseModel):
     need_restock: bool | None = None
     is_favorite: bool | None = None
 
+    @field_validator("quantity")
+    @classmethod
+    def quantity_must_not_be_negative(cls, value: Decimal | None) -> Decimal | None:
+        if value is not None and value < 0:
+            raise ValueError("数量不能为负")
+        return value
 
-class ItemMove(BaseModel):
+
+class ItemMove(WriteMetadata):
     location_code: str | None = None
     location_text: str | None = None
     note: str | None = None
-    source: str = "api"
 
 
-class QuantityAdd(BaseModel):
+class QuantityAdd(WriteMetadata):
     amount: Decimal
     unit: str | None = None
     note: str | None = None
-    source: str = "api"
+
+    @field_validator("amount")
+    @classmethod
+    def amount_must_be_positive(cls, value: Decimal) -> Decimal:
+        if value <= 0:
+            raise ValueError("数量变更必须大于 0")
+        return value
 
 
-class QuantityAdjust(BaseModel):
+class QuantityAdjust(WriteMetadata):
     quantity: Decimal
     unit: str | None = None
     note: str | None = None
-    source: str = "api"
+
+    @field_validator("quantity")
+    @classmethod
+    def quantity_must_not_be_negative(cls, value: Decimal) -> Decimal:
+        if value < 0:
+            raise ValueError("数量不能为负")
+        return value
 
 
-class NoteCreate(BaseModel):
+class NoteCreate(WriteMetadata):
     note_type: str = "note"
     content: str
-    source: str = "api"
-    operator: str | None = None
     metadata_json: str | None = None
 
 

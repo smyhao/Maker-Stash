@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.request_context import apply_idempotency_key
 from app.core.response import ok
 from app.schemas.item import (
     ItemCreate,
@@ -51,7 +52,12 @@ def list_items(
 
 
 @router.post("")
-def create_item(payload: ItemCreate, db: Session = Depends(get_db)) -> dict:
+def create_item(
+    payload: ItemCreate,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).create(payload)
     return ok(ItemRead.model_validate(item).model_dump())
 
@@ -63,7 +69,13 @@ def get_item(id_or_code: str, db: Session = Depends(get_db)) -> dict:
 
 
 @router.patch("/{id_or_code}")
-def update_item(id_or_code: str, payload: ItemUpdate, db: Session = Depends(get_db)) -> dict:
+def update_item(
+    id_or_code: str,
+    payload: ItemUpdate,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).update(id_or_code, payload)
     return ok(ItemRead.model_validate(item).model_dump())
 
@@ -79,25 +91,49 @@ def delete_item(
 
 
 @router.post("/{id_or_code}/move")
-def move_item(id_or_code: str, payload: ItemMove, db: Session = Depends(get_db)) -> dict:
+def move_item(
+    id_or_code: str,
+    payload: ItemMove,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).move(id_or_code, payload)
     return ok(ItemRead.model_validate(item).model_dump())
 
 
 @router.post("/{id_or_code}/add")
-def add_quantity(id_or_code: str, payload: QuantityAdd, db: Session = Depends(get_db)) -> dict:
+def add_quantity(
+    id_or_code: str,
+    payload: QuantityAdd,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).add_quantity(id_or_code, payload)
     return ok(ItemRead.model_validate(item).model_dump())
 
 
 @router.post("/{id_or_code}/use")
-def use_quantity(id_or_code: str, payload: QuantityAdd, db: Session = Depends(get_db)) -> dict:
+def use_quantity(
+    id_or_code: str,
+    payload: QuantityAdd,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).use_quantity(id_or_code, payload)
     return ok(ItemRead.model_validate(item).model_dump())
 
 
 @router.post("/{id_or_code}/adjust")
-def adjust_quantity(id_or_code: str, payload: QuantityAdjust, db: Session = Depends(get_db)) -> dict:
+def adjust_quantity(
+    id_or_code: str,
+    payload: QuantityAdjust,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     item = ItemService(db).adjust_quantity(id_or_code, payload)
     return ok(ItemRead.model_validate(item).model_dump())
 

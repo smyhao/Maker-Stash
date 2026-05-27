@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   Box,
   Grid2X2,
-  Home,
   ListFilter,
   ListTodo,
   MapPinned,
@@ -14,16 +14,21 @@ import {
   Wifi,
 } from 'lucide-vue-next'
 
+import BackupManager from '@/components/panels/BackupManager.vue'
+import CategoryManager from '@/components/panels/CategoryManager.vue'
 import DetailPanel from '@/components/panels/DetailPanel.vue'
 import AttributesDialog from '@/components/dialogs/AttributesDialog.vue'
 import DeleteItemDialog from '@/components/dialogs/DeleteItemDialog.vue'
+import HomeDashboard from '@/components/panels/HomeDashboard.vue'
+import InventoryGrid from '@/components/panels/InventoryGrid.vue'
 import InventoryTable from '@/components/panels/InventoryTable.vue'
 import ItemFormDialog from '@/components/dialogs/ItemFormDialog.vue'
 import LocationFormDialog from '@/components/dialogs/LocationFormDialog.vue'
 import LocationMap from '@/components/panels/LocationMap.vue'
 import MoveItemDialog from '@/components/dialogs/MoveItemDialog.vue'
+import MobileBottomNav from '@/components/layout/MobileBottomNav.vue'
 import QuantityDialog from '@/components/dialogs/QuantityDialog.vue'
-import SettingsDialog from '@/components/dialogs/SettingsDialog.vue'
+import SettingsPanel from '@/components/panels/SettingsPanel.vue'
 import SidebarNav from '@/components/layout/SidebarNav.vue'
 import TagsDialog from '@/components/dialogs/TagsDialog.vue'
 import ItemThumb from '@/components/ui/ItemThumb.vue'
@@ -31,29 +36,85 @@ import StatusDot from '@/components/ui/StatusDot.vue'
 import { useInventoryStore } from '@/stores/inventory'
 import type { ItemFormPayload, LocationFormPayload, LocationNode } from '@/types'
 
+type ScreenMode = 'home' | 'inventory' | 'locations' | 'categories' | 'backups' | 'settings'
+
 const store = useInventoryStore()
+const route = useRoute()
+const router = useRouter()
 const itemDialog = ref<'create' | 'edit' | null>(null)
-const quantityDialog = ref<'add' | 'use' | null>(null)
+const quantityDialog = ref<'add' | 'use' | 'adjust' | null>(null)
 const deleteDialogOpen = ref(false)
-const settingsOpen = ref(false)
 const tagsOpen = ref(false)
 const attributesOpen = ref(false)
 const locationDialog = ref<{ mode: 'create' | 'edit'; location: (LocationNode & { depth?: number }) | null } | null>(null)
 const moveDialogOpen = ref(false)
 const busy = ref(false)
-const viewMode = ref<'inventory' | 'locations' | 'workbench'>('inventory')
 const notice = ref<{ type: 'error' | 'success'; message: string } | null>(null)
+const inventoryView = ref<'list' | 'grid'>('list')
+
+const screenMode = computed<ScreenMode>(() => {
+  switch (String(route.name || 'items')) {
+    case 'home':
+      return 'home'
+    case 'locations':
+      return 'locations'
+    case 'categories':
+      return 'categories'
+    case 'backups':
+      return 'backups'
+    case 'settings':
+      return 'settings'
+    default:
+      return 'inventory'
+  }
+})
+
+const showInventoryFilters = computed(() => screenMode.value === 'inventory')
+const showDetailPanel = computed(() => screenMode.value === 'inventory' || screenMode.value === 'locations')
+const primaryTabs: Array<{ key: ScreenMode; label: string; route: string }> = [
+  { key: 'inventory', label: '库存', route: 'items' },
+  { key: 'locations', label: '位置', route: 'locations' },
+  { key: 'home', label: '工作台', route: 'home' },
+]
 
 function showNotice(type: 'error' | 'success', message: string) {
   notice.value = { type, message }
 }
 
-function setViewMode(mode: 'inventory' | 'locations' | 'workbench') {
-  viewMode.value = mode
-  if (mode === 'inventory') {
-    store.loadItems()
+function setInventoryView(mode: 'list' | 'grid') {
+  inventoryView.value = mode
+}
+
+function setScreenMode(mode: ScreenMode) {
+  const target = primaryTabs.find((tab) => tab.key === mode)
+  if (target) {
+    void router.push({ name: target.route })
   }
 }
+
+function openSettings() {
+  void router.push({ name: 'settings' })
+}
+
+function applyRouteState(routeName: string) {
+  if (routeName !== 'locations' && store.activeLocationCode) {
+    store.setLocation(null)
+  }
+
+  store.setFavoriteOnly(routeName === 'favorites')
+  store.setRestockOnly(routeName === 'restock')
+  store.setLowOnly(false)
+
+  if ((store.items.length || store.categories.length) && routeName !== 'settings') {
+    void store.loadItems()
+  }
+}
+
+watch(
+  () => route.name,
+  (name) => applyRouteState(String(name || 'items')),
+  { immediate: true },
+)
 
 const statusText = computed(() => {
   if (store.loading) return '正在同步数据'
@@ -80,6 +141,8 @@ async function submitQuantity(amount: number, note: string) {
     notice.value = null
     if (quantityDialog.value === 'add') {
       await store.addQuantity(amount, note)
+    } else if (quantityDialog.value === 'adjust') {
+      await store.adjustQuantity(amount, note)
     } else {
       await store.useQuantity(amount, note)
     }
@@ -175,9 +238,6 @@ async function moveSelected(locationCode: string | null, locationText: string | 
               <div class="text-[13px] text-muted">Maker Stash</div>
             </div>
           </div>
-          <button class="grid h-10 w-10 place-items-center rounded-[8px] border border-line" @click="settingsOpen = true">
-            <Settings :size="20" />
-          </button>
         </div>
         <div class="relative">
           <ListFilter class="absolute left-3 top-1/2 -translate-y-1/2 text-muted" :size="20" />
@@ -189,17 +249,32 @@ async function moveSelected(locationCode: string | null, locationText: string | 
             @keydown.enter="store.loadItems()"
           />
         </div>
+        <div class="mt-3 flex gap-2 overflow-x-auto pb-1 text-[13px]">
+          <button
+            v-for="tab in primaryTabs"
+            :key="tab.key"
+            class="shrink-0 rounded-[8px] border px-3 py-2 font-medium"
+            :class="screenMode === tab.key ? 'border-blue bg-blue/10 text-blue' : 'border-line bg-white text-ink/80'"
+            @click="setScreenMode(tab.key)"
+          >
+            {{ tab.label }}
+          </button>
+        </div>
       </header>
       <main class="thin-scrollbar flex-1 overflow-y-auto px-4 py-4">
         <div v-if="notice" class="mb-3 rounded-[8px] border px-3 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-teal-200 bg-teal-50 text-teal'">
           {{ notice.message }}
         </div>
         <LocationMap
-          v-if="viewMode === 'locations'"
+          v-if="screenMode === 'locations'"
           @create="(location) => locationDialog = { mode: 'create', location }"
           @edit="(location) => locationDialog = { mode: 'edit', location }"
           @delete="deleteLocation"
         />
+        <HomeDashboard v-else-if="screenMode === 'home'" />
+        <CategoryManager v-else-if="screenMode === 'categories'" />
+        <BackupManager v-else-if="screenMode === 'backups'" />
+        <SettingsPanel v-else-if="screenMode === 'settings'" @saved="store.bootstrap()" />
         <template v-else>
         <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
           <button
@@ -246,13 +321,15 @@ async function moveSelected(locationCode: string | null, locationText: string | 
         </div>
         </template>
       </main>
-      <nav class="grid h-16 grid-cols-5 border-t border-line bg-white text-[12px] text-muted">
-        <button class="grid place-items-center" :class="viewMode === 'inventory' ? 'text-blue' : ''" @click="setViewMode('inventory')"><Home :size="21" />物品</button>
-        <button class="grid place-items-center" :class="viewMode === 'locations' ? 'text-blue' : ''" @click="setViewMode('locations')"><MapPinned :size="21" />位置</button>
-        <button class="grid place-items-center" @click="itemDialog = 'create'"><Plus :size="21" />新增</button>
-        <button class="grid place-items-center" :class="store.restockOnly ? 'text-amber' : ''" @click="toggleRestockFilter"><ListTodo :size="21" />补货</button>
-        <button class="grid place-items-center" @click="settingsOpen = true"><Settings :size="21" />设置</button>
-      </nav>
+      <button
+        v-if="screenMode === 'inventory'"
+        class="fixed bottom-20 right-4 z-20 grid h-12 w-12 place-items-center rounded-[8px] bg-blue text-white shadow-lg"
+        title="快速添加"
+        @click="itemDialog = 'create'"
+      >
+        <Plus :size="24" />
+      </button>
+      <MobileBottomNav />
     </div>
 
     <div class="hidden h-screen min-h-[680px] grid-cols-[clamp(190px,17vw,250px)_minmax(0,1fr)_clamp(280px,24vw,360px)] grid-rows-[80px_1fr] overflow-hidden lg:grid">
@@ -307,12 +384,12 @@ async function moveSelected(locationCode: string | null, locationText: string | 
         <button class="hidden h-[46px] shrink-0 cursor-not-allowed items-center gap-2 rounded-[8px] border border-line bg-white px-3 text-[14px] font-medium text-slate-400 2xl:inline-flex 2xl:h-[54px] 2xl:px-5 2xl:text-[15px]" disabled title="NFC 功能待接入浏览器/设备能力">
           <Wifi :size="21" /> NFC
         </button>
-        <button class="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-[8px] border border-line bg-white px-3 text-[14px] font-medium hover:border-blue hover:text-blue 2xl:h-[54px] 2xl:px-5 2xl:text-[15px]" @click="settingsOpen = true">
+        <button class="inline-flex h-[46px] shrink-0 items-center gap-2 rounded-[8px] border border-line bg-white px-3 text-[14px] font-medium hover:border-blue hover:text-blue 2xl:h-[54px] 2xl:px-5 2xl:text-[15px]" @click="openSettings">
           <Settings :size="21" /> 设置
         </button>
       </header>
 
-      <main class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-panel">
+      <main class="flex min-h-0 min-w-0 flex-col overflow-hidden bg-panel" :class="showDetailPanel ? '' : 'col-span-2'">
         <div v-if="notice" class="shrink-0 border-b px-4 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-teal-200 bg-teal-50 text-teal'">
           <div class="flex items-center justify-between gap-3">
             <span>{{ notice.message }}</span>
@@ -321,13 +398,31 @@ async function moveSelected(locationCode: string | null, locationText: string | 
         </div>
         <div class="shrink-0 flex min-h-[56px] flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2 2xl:px-5">
           <div class="flex h-full items-center gap-8 text-[16px] font-medium">
-            <button class="relative h-full" :class="viewMode === 'inventory' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('inventory')">库存</button>
-            <button class="relative h-full" :class="viewMode === 'locations' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('locations')">位置</button>
-            <button class="relative h-full" :class="viewMode === 'workbench' ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'" @click="setViewMode('workbench')">工作台</button>
+            <button
+              v-for="tab in primaryTabs"
+              :key="tab.key"
+              class="relative h-full"
+              :class="screenMode === tab.key ? 'text-blue after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-blue' : 'text-ink/80'"
+              @click="setScreenMode(tab.key)"
+            >
+              {{ tab.label }}
+            </button>
           </div>
-          <div v-if="viewMode === 'inventory'" class="flex flex-wrap items-center gap-2">
-            <button class="inline-flex h-9 items-center gap-2 rounded-[6px] border border-blue/30 bg-blue/10 px-3 text-[14px] font-medium text-blue"><ListTodo :size="18" />列表</button>
-            <button class="inline-flex h-9 cursor-not-allowed items-center gap-2 rounded-[6px] border border-line bg-white px-3 text-[14px] text-slate-400" disabled><Grid2X2 :size="17" />网格</button>
+          <div v-if="showInventoryFilters" class="flex flex-wrap items-center gap-2">
+            <button
+              class="inline-flex h-9 items-center gap-2 rounded-[6px] border px-3 text-[14px] font-medium"
+              :class="inventoryView === 'list' ? 'border-blue/30 bg-blue/10 text-blue' : 'border-line bg-white text-ink/80'"
+              @click="setInventoryView('list')"
+            >
+              <ListTodo :size="18" />列表
+            </button>
+            <button
+              class="inline-flex h-9 items-center gap-2 rounded-[6px] border px-3 text-[14px]"
+              :class="inventoryView === 'grid' ? 'border-blue/30 bg-blue/10 text-blue' : 'border-line bg-white text-ink/80'"
+              @click="setInventoryView('grid')"
+            >
+              <Grid2X2 :size="17" />网格
+            </button>
             <button class="h-9 rounded-[6px] border px-3 text-[13px]" :class="store.favoriteOnly ? 'border-blue bg-blue/10 text-blue' : 'border-line bg-white text-ink/80'" @click="toggleFavoriteFilter">常用</button>
             <button class="h-9 rounded-[6px] border px-3 text-[13px]" :class="store.restockOnly ? 'border-amber/40 bg-amber/10 text-amber' : 'border-line bg-white text-ink/80'" @click="toggleRestockFilter">补货</button>
             <button class="h-9 rounded-[6px] border px-3 text-[13px]" :class="store.lowOnly ? 'border-amber/40 bg-amber/10 text-amber' : 'border-line bg-white text-ink/80'" @click="toggleLowFilter">低库存</button>
@@ -335,23 +430,26 @@ async function moveSelected(locationCode: string | null, locationText: string | 
           </div>
         </div>
         <div class="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <InventoryTable v-if="viewMode === 'inventory'" />
+          <InventoryTable v-if="screenMode === 'inventory' && inventoryView === 'list'" />
+          <InventoryGrid v-else-if="screenMode === 'inventory' && inventoryView === 'grid'" />
           <LocationMap
-            v-else-if="viewMode === 'locations'"
+            v-else-if="screenMode === 'locations'"
             @create="(location) => locationDialog = { mode: 'create', location }"
             @edit="(location) => locationDialog = { mode: 'edit', location }"
             @delete="deleteLocation"
           />
-          <div v-else class="grid h-full min-h-[360px] place-items-center px-6 text-center text-[14px] text-muted">
-            工作台视图待接入批量盘点、扫描和打印流程。
-          </div>
+          <HomeDashboard v-else-if="screenMode === 'home'" />
+          <CategoryManager v-else-if="screenMode === 'categories'" />
+          <BackupManager v-else-if="screenMode === 'backups'" />
+          <SettingsPanel v-else @saved="store.bootstrap()" />
         </div>
       </main>
 
-      <aside class="min-h-0 min-w-0 overflow-hidden border-l border-line bg-panel">
+      <aside v-if="showDetailPanel" class="min-h-0 min-w-0 overflow-hidden border-l border-line bg-panel">
         <DetailPanel
           @add-quantity="quantityDialog = 'add'"
           @use-quantity="quantityDialog = 'use'"
+          @adjust-quantity="quantityDialog = 'adjust'"
           @edit="itemDialog = 'edit'"
           @delete="deleteDialogOpen = true"
           @favorite="runBusy(() => store.toggleSelectedFavorite())"
@@ -366,7 +464,7 @@ async function moveSelected(locationCode: string | null, locationText: string | 
       </aside>
     </div>
 
-    <div class="fixed bottom-5 right-[calc(clamp(280px,24vw,360px)+20px)] hidden gap-3 2xl:flex">
+    <div v-if="screenMode === 'locations'" class="fixed bottom-5 right-[calc(clamp(280px,24vw,360px)+20px)] hidden gap-3 2xl:flex">
       <button class="grid h-11 w-11 place-items-center rounded-[8px] border border-line bg-white text-muted shadow-sm">−</button>
       <button class="grid h-11 w-11 place-items-center rounded-[8px] border border-line bg-white text-muted shadow-sm">＋</button>
       <button class="inline-flex h-11 items-center gap-2 rounded-[8px] border border-line bg-white px-4 text-[14px] font-medium text-ink shadow-sm">
@@ -397,11 +495,6 @@ async function moveSelected(locationCode: string | null, locationText: string | 
       :busy="busy"
       @close="deleteDialogOpen = false"
       @confirm="deleteSelected"
-    />
-    <SettingsDialog
-      :open="settingsOpen"
-      @close="settingsOpen = false"
-      @saved="store.bootstrap()"
     />
     <TagsDialog
       :open="tagsOpen"

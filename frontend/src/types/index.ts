@@ -17,7 +17,10 @@ export interface Category {
   code_prefix: string
   parent_id: number | null
   sort_order: number
+  description?: string | null
   is_system: boolean
+  created_at?: string
+  updated_at?: string
   children?: Category[]
 }
 
@@ -105,6 +108,7 @@ export interface Attachment {
   original_name: string
   stored_name?: string
   file_path: string
+  thumbnail_path?: string | null
   mime_type: string | null
   size_bytes: number | null
   description?: string | null

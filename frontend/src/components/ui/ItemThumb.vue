@@ -2,7 +2,7 @@
 import { onBeforeUnmount, ref, watch } from 'vue'
 import { Cpu, Package, ScrollText, Wrench } from 'lucide-vue-next'
 
-import { downloadAttachmentFile } from '@/api/items'
+import { downloadAttachmentFile, downloadAttachmentThumbnail } from '@/api/items'
 import type { Item } from '@/types'
 
 const props = defineProps<{ item: Item }>()
@@ -19,10 +19,15 @@ watch(
     clearImage()
     if (!attachmentId) return
     try {
-      const blob = await downloadAttachmentFile(attachmentId)
+      const blob = await downloadAttachmentThumbnail(attachmentId)
       imageUrl.value = URL.createObjectURL(blob)
     } catch {
-      imageUrl.value = null
+      try {
+        const blob = await downloadAttachmentFile(attachmentId)
+        imageUrl.value = URL.createObjectURL(blob)
+      } catch {
+        imageUrl.value = null
+      }
     }
   },
   { immediate: true },

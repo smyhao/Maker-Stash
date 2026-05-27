@@ -1,9 +1,19 @@
 import { defineStore } from 'pinia'
 
-import { createLocation, deleteLocation, fetchCategories, fetchLocations, updateLocation } from '@/api/catalog'
+import {
+  createCategory,
+  createLocation,
+  deleteCategory,
+  deleteLocation,
+  fetchCategories,
+  fetchLocations,
+  updateCategory,
+  updateLocation,
+} from '@/api/catalog'
 import { fetchStatsOverview } from '@/api/stats'
 import {
   addItemQuantity,
+  adjustItem,
   addItemTags,
   createItemAttribute,
   createItem,
@@ -276,6 +286,12 @@ export const useInventoryStore = defineStore('inventory', {
       }
     },
 
+    async refreshCategories() {
+      const categories = await fetchCategories()
+      this.categories = categories.categories
+      await this.refreshStats()
+    },
+
     async saveItem(payload: ItemFormPayload, code?: string) {
       let saved: Item | null = null
       if (code) {
@@ -317,6 +333,15 @@ export const useInventoryStore = defineStore('inventory', {
       const item = this.selectedItem
       if (!item) return
       await useItem(item.code, amount, item.unit || undefined, note || '前端出库')
+      await this.loadItems()
+      await this.refreshStats()
+      await this.selectItem(item.code)
+    },
+
+    async adjustQuantity(quantity: number, note: string) {
+      const item = this.selectedItem
+      if (!item) return
+      await adjustItem(item.code, quantity, item.unit || undefined, note || '前端调整库存')
       await this.loadItems()
       await this.refreshStats()
       await this.selectItem(item.code)
@@ -428,6 +453,45 @@ export const useInventoryStore = defineStore('inventory', {
       const locations = await fetchLocations()
       this.locations = locations.locations
       await this.refreshStats()
+    },
+
+    async saveCategory(
+      payload: {
+        name: string
+        slug: string
+        code_prefix: string
+        parent_id?: number | null
+        sort_order?: number
+        description?: string | null
+      },
+      id?: number,
+    ) {
+      if (id) {
+        await updateCategory(id, {
+          name: payload.name,
+          sort_order: payload.sort_order || 0,
+          description: payload.description || null,
+        })
+      } else {
+        await createCategory({
+          name: payload.name,
+          slug: payload.slug,
+          code_prefix: payload.code_prefix,
+          parent_id: payload.parent_id || null,
+          sort_order: payload.sort_order || 0,
+          description: payload.description || null,
+        })
+      }
+      await this.refreshCategories()
+    },
+
+    async deleteCategory(id: number) {
+      await deleteCategory(id)
+      await this.refreshCategories()
+      if (this.activeCategory && !this.flatCategories.some((category) => category.slug === this.activeCategory)) {
+        this.activeCategory = null
+        await this.loadItems()
+      }
     },
 
     async deleteLocation(id: number) {

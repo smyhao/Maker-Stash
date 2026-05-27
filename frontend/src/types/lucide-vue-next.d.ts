@@ -10,6 +10,8 @@ declare module 'lucide-vue-next' {
   export const Boxes: LucideIcon
   export const Briefcase: LucideIcon
   export const Cable: LucideIcon
+  export const ChevronDown: LucideIcon
+  export const ChevronRight: LucideIcon
   export const Check: LucideIcon
   export const Container: LucideIcon
   export const Copy: LucideIcon

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDownToLine, ArrowUpFromLine, Heart, MapPinned, PackageCheck, Paperclip, Pencil, Trash2, Upload, X } from 'lucide-vue-next'
+import { ArrowDownToLine, ArrowUpFromLine, Heart, MapPinned, PackageCheck, Paperclip, Pencil, SlidersHorizontal, Trash2, Upload, X } from 'lucide-vue-next'
 
 import StatusDot from '@/components/ui/StatusDot.vue'
 import { downloadAttachmentFile } from '@/api/items'
@@ -11,6 +11,7 @@ const store = useInventoryStore()
 const emit = defineEmits<{
   addQuantity: []
   useQuantity: []
+  adjustQuantity: []
   edit: []
   delete: []
   favorite: []
@@ -163,6 +164,9 @@ async function downloadAttachment(attachment: Attachment) {
           </button>
           <button class="inline-flex h-11 items-center justify-center gap-2 rounded-[8px] border border-orange-300 bg-orange-50 text-[15px] font-medium text-orange-600" @click="emit('useQuantity')">
             <ArrowUpFromLine :size="19" /> 出库
+          </button>
+          <button class="inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-line text-[14px] font-medium text-ink/80" @click="emit('adjustQuantity')">
+            <SlidersHorizontal :size="17" /> 调整
           </button>
           <button class="inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-line text-[14px] font-medium" :class="item.is_favorite ? 'bg-blue/10 text-blue' : 'text-ink/80'" @click="emit('favorite')">
             <Heart :size="17" /> {{ item.is_favorite ? '取消常用' : '常用' }}

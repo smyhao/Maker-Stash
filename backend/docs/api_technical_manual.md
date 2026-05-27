@@ -25,6 +25,8 @@ app/api/
     ├── attributes.py      属性模板 + 物品属性值
     ├── attachments.py     图片/附件上传下载
     ├── backups.py         备份创建/列表/恢复/下载
+    ├── tasks.py           轻量任务 API
+    ├── workflows.py       plan / confirm 工作流
     └── stats.py           统计概览
 ```
 
@@ -316,6 +318,13 @@ status, description, need_restock, is_favorite, cover_attachment_id,
 is_archived, created_at, updated_at
 ```
 
+**写入边界：**
+
+- `quantity` 不能为负；`add/use/adjust` 会在 Schema 和 Service 层校验。
+- 已归档物品禁止库存和位置变更，包括 `move/add/use/adjust`，也包括 `PATCH /api/items/{id_or_code}` 中的 `quantity/unit/location_id/location_text` 字段。
+- 关键写接口支持请求体 `request_id`，也支持请求头 `Idempotency-Key`；两者同时存在时必须一致，否则返回 `IDEMPOTENCY_KEY_MISMATCH`。
+- 来源字段统一为 `source/module/operator/request_id`，关键写操作会写入审计日志。
+
 ### 4.3 分类 (categories)
 
 | 方法 | 路径 | 说明 |
@@ -436,12 +445,19 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 | POST | `/api/items/{id_or_code}/images` | 上传图片（multipart，`is_cover` 表单字段） |
 | POST | `/api/items/{id_or_code}/attachments` | 上传附件（multipart） |
 | GET | `/api/items/{id_or_code}/attachments` | 附件列表 |
-| DELETE | `/api/attachments/{id}` | 软删除附件 |
+| DELETE | `/api/attachments/{id}` | 删除附件并释放上传文件 |
 | GET | `/api/attachments/{id}/download` | 下载附件 |
 
-**AttachmentRead：** `id, item_id, attachment_type, original_name, stored_name, file_path, mime_type, size_bytes, description, is_cover, is_deleted, created_at`
+**AttachmentRead：** `id, item_id, attachment_type, original_name, stored_name, file_path, thumbnail_path, mime_type, size_bytes, description, is_cover, is_deleted, created_at`
 
 上传约束：单文件默认 50MB；图片只支持 JPEG/PNG/WebP/GIF；`is_cover=true` 会把上传图片设置为物品封面。
+
+删除语义：
+
+- `DELETE /api/attachments/{id}` 会标记附件删除，并同步删除上传原文件和缩略图文件。
+- 如果删除的是当前封面，会同步清空物品 `cover_attachment_id`，避免前端继续请求已删除缩略图。
+- `DELETE /api/items/{id_or_code}?delete_attachments=true` 会归档物品，并释放该物品所有附件原文件和缩略图。
+- 普通归档不删除附件文件，只隐藏归档物品；需要释放磁盘空间时必须传 `delete_attachments=true`。
 
 ### 4.11 备份 (backups)
 
@@ -463,6 +479,64 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 - 恢复会覆盖当前数据库和上传文件目录；外部部署应先确认目标备份文件已下载或可重新获取。
 - 同一时间只允许一个备份或恢复任务执行，冲突返回 `BACKUP_IN_PROGRESS`。
 
+### 4.12 任务 (tasks)
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/tasks` | 提交轻量任务 |
+| GET | `/api/tasks/{task_id}` | 查询任务详情 |
+| GET | `/api/tasks/{task_id}/status` | 查询任务状态 |
+
+**TaskCreate：** `job_type`(必填), `input_summary`, `source`, `module`, `operator`, `request_id`
+
+任务状态固定为：`queued`, `running`, `succeeded`, `failed`。
+
+任务提交支持 `request_id` / `Idempotency-Key` 幂等；同一键重复提交返回同一个任务。
+
+失败任务状态响应包含稳定错误结构：
+
+```json
+{
+  "task": {
+    "task_id": "task-...",
+    "status": "failed",
+    "job_type": "batch_import",
+    "error": {"code": "TASK_FAILED", "message": "CSV 缺少必填列 name"}
+  }
+}
+```
+
+### 4.13 工作流 (workflows)
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/api/workflows/plans` | 创建 plan / dry-run |
+| GET | `/api/workflows/plans/{plan_id}` | 查询 plan 和 confirm 结果 |
+| POST | `/api/workflows/plans/{plan_id}/confirm` | 基于 plan 确认执行 |
+
+当前支持的 `workflow_type`：
+
+- `batch_import`：批量导入预演和确认执行。
+- `batch_outbound`：批量出库预演和确认执行。
+- `agent_operation`：Agent 操作计划输出；当前只生成计划，不执行外部副作用。
+
+plan 响应包含：
+
+```
+plan_id, workflow_type, status, summary, creates, updates, skips,
+failures, risks, confirm_token, task_id, source, module, operator,
+request_id, created_at, confirmed_at
+```
+
+confirm 规则：
+
+- 必须传入 plan 返回的 `confirm_token`。
+- plan 存在 `failures` 时不能 confirm，返回 `PLAN_HAS_FAILURES`。
+- confirm 不重新自由计算输入，只执行已保存的 plan 结果。
+- confirm 会创建并更新任务记录；成功时任务为 `succeeded`，失败时任务为 `failed`。
+- confirm 中的业务写入、plan 确认状态和任务成功状态在同一事务内完成；若业务执行中途失败，会回滚已执行的业务写入，并保留 failed task 供排查。
+- 重复 confirm 已确认的 plan 不会重复执行副作用。
+
 ---
 
 ## 5. 错误码
@@ -474,11 +548,21 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 | `LOCATION_NOT_FOUND` | 404 | 位置不存在 |
 | `TAG_NOT_FOUND` | 404 | 标签不存在 |
 | `BACKUP_NOT_FOUND` | 404 | 备份不存在 |
+| `TASK_NOT_FOUND` | 404 | 任务不存在 |
+| `PLAN_NOT_FOUND` | 404 | 工作流计划不存在 |
 | `BACKUP_IN_PROGRESS` | 409 | 已有备份或恢复任务正在执行 |
 | `INVALID_TOKEN` | 401 | Token 无效或缺失 |
 | `DUPLICATE_CODE` | 400 | 编号重复 |
 | `LOCATION_CODE_EXISTS` | 400 | 位置编号已存在 |
 | `LOCATION_NOT_EMPTY` | 400 | 位置非空，不能删除 |
+| `NEGATIVE_QUANTITY_NOT_ALLOWED` | 400 | 库存不能变为负数 |
+| `ARCHIVED_ITEM_QUANTITY_FORBIDDEN` | 400 | 已归档物品不能变更库存 |
+| `ARCHIVED_ITEM_MOVE_FORBIDDEN` | 400 | 已归档物品不能移动位置 |
+| `IDEMPOTENCY_KEY_MISMATCH` | 400 | 请求体 request_id 与 Idempotency-Key 不一致 |
+| `IDEMPOTENCY_KEY_CONFLICT` | 409 | 幂等键已被其他写操作使用 |
+| `PLAN_CONFIRM_TOKEN_INVALID` | 409 | plan 确认标识不匹配 |
+| `PLAN_HAS_FAILURES` | 409 | plan 含失败项，不能确认执行 |
+| `INVALID_TASK_STATE` | 409 | 任务状态迁移非法 |
 | `VALIDATION_ERROR` | 422 | 参数校验失败 |
 | `UPLOAD_FAILED` | 400 | 上传失败 |
 | `UPLOAD_TOO_LARGE` | 413 | 上传文件超过大小限制 |

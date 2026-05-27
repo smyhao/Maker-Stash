@@ -75,6 +75,8 @@ class CategoryService:
 
     def create(self, payload: CategoryCreate, is_system: bool = False) -> Category:
         validate_code(payload.code_prefix, "code_prefix")
+        if payload.parent_id is not None:
+            self.get(payload.parent_id)
         exists = self.db.scalar(select(Category).where(Category.slug == payload.slug))
         if exists:
             raise AppError("DUPLICATE_CODE", "分类 slug 已存在")

@@ -10,6 +10,7 @@ class AttachmentRead(BaseModel):
     original_name: str
     stored_name: str
     file_path: str
+    thumbnail_path: str | None
     mime_type: str | None
     size_bytes: int | None
     description: str | None

@@ -4,7 +4,7 @@ import { X } from 'lucide-vue-next'
 
 const props = defineProps<{
   open: boolean
-  mode: 'add' | 'use'
+  mode: 'add' | 'use' | 'adjust'
   unit: string | null
   busy?: boolean
 }>()
@@ -19,21 +19,35 @@ const form = reactive({
   note: '',
 })
 
-const title = computed(() => (props.mode === 'add' ? '入库' : '出库'))
-const actionClass = computed(() => (props.mode === 'add' ? 'bg-blue text-white' : 'bg-orange-600 text-white'))
+const title = computed(() => {
+  if (props.mode === 'add') return '入库'
+  if (props.mode === 'use') return '出库'
+  return '调整库存'
+})
+const actionClass = computed(() => {
+  if (props.mode === 'add') return 'bg-blue text-white'
+  if (props.mode === 'use') return 'bg-orange-600 text-white'
+  return 'bg-slate-900 text-white'
+})
+const amountLabel = computed(() => (props.mode === 'adjust' ? `目标数量${props.unit ? `（${props.unit}）` : ''}` : `数量${props.unit ? `（${props.unit}）` : ''}`))
 
 watch(
   () => props.open,
   (open) => {
     if (!open) return
     form.amount = '1'
-    form.note = props.mode === 'add' ? '手动入库' : '手动出库'
+    form.note = props.mode === 'add'
+      ? '手动入库'
+      : props.mode === 'use'
+        ? '手动出库'
+        : '手动调整库存'
   },
 )
 
 function submit() {
   const amount = Number(form.amount)
-  if (!Number.isFinite(amount) || amount <= 0) return
+  if (!Number.isFinite(amount)) return
+  if (props.mode === 'adjust' ? amount < 0 : amount <= 0) return
   emit('submit', amount, form.note.trim())
 }
 </script>
@@ -49,8 +63,8 @@ function submit() {
       </header>
       <div class="space-y-4 p-5">
         <label>
-          <span class="mb-1 block text-[13px] text-muted">数量{{ unit ? `（${unit}）` : '' }}</span>
-          <input v-model="form.amount" type="number" min="0.001" step="0.001" required class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue" />
+          <span class="mb-1 block text-[13px] text-muted">{{ amountLabel }}</span>
+          <input v-model="form.amount" type="number" :min="props.mode === 'adjust' ? '0' : '0.001'" step="0.001" required class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue" />
         </label>
         <label>
           <span class="mb-1 block text-[13px] text-muted">记录</span>

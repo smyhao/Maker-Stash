@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Header
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.request_context import apply_idempotency_key
 from app.core.response import ok
 from app.schemas.item import ItemRead
 from app.schemas.metadata import (
@@ -99,8 +100,10 @@ def delete_alias(id_or_code: str, alias: str, db: Session = Depends(get_db)) -> 
 def create_identifier(
     id_or_code: str,
     payload: IdentifierCreate,
+    idempotency_key: str | None = Header(None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
 ) -> dict:
+    payload = apply_idempotency_key(payload, idempotency_key)
     identifier = IdentifierService(db).create(id_or_code, payload)
     return ok(IdentifierRead.model_validate(identifier).model_dump())
 
