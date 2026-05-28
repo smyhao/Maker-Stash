@@ -1,12 +1,14 @@
 import { defineStore } from 'pinia'
 
 import {
+  createContainer,
   createCategory,
   createLocation,
   deleteCategory,
   deleteLocation,
   fetchCategories,
   fetchLocations,
+  updateContainer,
   updateCategory,
   updateLocation,
 } from '@/api/catalog'
@@ -35,7 +37,7 @@ import {
   updateItemAttribute,
   useItem,
 } from '@/api/items'
-import type { Attachment, Category, Item, ItemAttribute, ItemFormPayload, LocationFormPayload, LocationNode, Note, StatsOverview, Tag } from '@/types'
+import type { Attachment, Category, ContainerCreatePayload, ContainerLayoutPayload, Item, ItemAttribute, ItemFormPayload, LocationFormPayload, LocationNode, Note, StatsOverview, Tag } from '@/types'
 
 interface InventoryState {
   items: Item[]
@@ -455,6 +457,19 @@ export const useInventoryStore = defineStore('inventory', {
       await this.refreshStats()
     },
 
+    async saveContainer(payload: ContainerCreatePayload) {
+      await createContainer(payload)
+      const locations = await fetchLocations()
+      this.locations = locations.locations
+      await this.refreshStats()
+    },
+
+    async resizeContainer(id: number, payload: ContainerLayoutPayload) {
+      await updateContainer(id, payload)
+      const locations = await fetchLocations()
+      this.locations = locations.locations
+    },
+
     async saveCategory(
       payload: {
         name: string
@@ -469,6 +484,7 @@ export const useInventoryStore = defineStore('inventory', {
       if (id) {
         await updateCategory(id, {
           name: payload.name,
+          parent_id: payload.parent_id ?? null,
           sort_order: payload.sort_order || 0,
           description: payload.description || null,
         })

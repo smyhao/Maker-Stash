@@ -79,9 +79,10 @@ class ItemService:
             like = f"%{q}%"
             stmt = stmt.where(fulltext_where(Item, like))
         if category:
-            found = CategoryService(self.db).find_by_any(category)
+            category_service = CategoryService(self.db)
+            found = category_service.find_by_any(category)
             if found:
-                stmt = stmt.where(Item.category_id == found.id)
+                stmt = stmt.where(Item.category_id.in_(category_service.branch_ids(found)))
         if location:
             found_location = LocationService(self.db).get_by_code(location)
             stmt = stmt.where(Item.location_id == found_location.id)
@@ -125,6 +126,8 @@ class ItemService:
             if payload.location_code
             else None
         )
+        if location:
+            LocationService(self.db).ensure_slot_available(location)
         last_error: IntegrityError | None = None
         for _ in range(3):
             code = self._next_code(category)
@@ -193,7 +196,8 @@ class ItemService:
         if "category_id" in data and data["category_id"] is not None:
             CategoryService(self.db).get(data["category_id"])
         if "location_id" in data and data["location_id"] is not None:
-            LocationService(self.db).get(data["location_id"])
+            target_location = LocationService(self.db).get(data["location_id"])
+            LocationService(self.db).ensure_slot_available(target_location, item_id=item.id)
         for key, value in data.items():
             setattr(item, key, value)
         self.db.flush()
@@ -241,6 +245,8 @@ class ItemService:
             if payload.location_code
             else None
         )
+        if location:
+            LocationService(self.db).ensure_slot_available(location, item_id=item.id)
         item.location_id = location.id if location else None
         item.location_text = payload.location_text
         self.db.flush()

@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -17,5 +17,13 @@ class Location(TimestampMixin, Base):
     type: Mapped[str | None]
     description: Mapped[str | None]
     sort_order: Mapped[int] = mapped_column(default=0)
+    layout_type: Mapped[str | None]
+    layout_rows: Mapped[int | None]
+    layout_columns: Mapped[int | None]
+    appearance_color: Mapped[str | None]
+    appearance_icon: Mapped[str | None]
+    is_slot: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    slot_key: Mapped[str | None]
+    slot_order: Mapped[int | None]
 
     parent: Mapped["Location | None"] = relationship(remote_side=[id])

@@ -7,6 +7,7 @@ import HomeView from '@/views/HomeView.vue'
 import InventoryView from '@/views/InventoryView.vue'
 import ItemListView from '@/views/ItemListView.vue'
 import LocationView from '@/views/LocationView.vue'
+import ManagementView from '@/views/ManagementView.vue'
 import RestockView from '@/views/RestockView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 
@@ -52,6 +53,11 @@ const router = createRouter({
       path: '/settings',
       name: 'settings',
       component: SettingsView,
+    },
+    {
+      path: '/management',
+      name: 'management',
+      component: ManagementView,
     },
   ],
 })

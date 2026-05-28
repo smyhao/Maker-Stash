@@ -271,11 +271,13 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 
 结果默认显示编号、名称、数量、状态和 `matched_by` 标记。
 
+`--category` 与 API 一致，传入父分类时会包含所有子分类和孙分类物品。
+
 ### 5.4 item — 物品管理
 
 | 命令 | 参数/选项 | 说明 |
 |---|---|---|
-| `item list` | `--category --location --tag --status --restock --favorite --json` | 物品列表 |
+| `item list` | `--category --location --tag --status --restock --favorite --json` | 物品列表；父分类筛选包含子孙分类 |
 | `item show` | `<id_or_code> --json` | 查看详情 |
 | `item add` | `--name --category --location --location-text --quantity --unit --status --description --note --tag(可多次) --attr key=value(可多次) --json` | 新增物品 |
 | `item update` | `<id_or_code> --name --status --description --unit --json` | 修改物品 |
@@ -308,6 +310,12 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 | `category update` | `<id> --name --prefix --description --json` | 修改分类 |
 | `category delete` | `<id>` | 删除分类 |
 
+说明：
+
+- 分类本身是树形结构，`category tree` 会返回嵌套 `children`。
+- `category add --parent-id` 可创建子分类，例如把「电阻」放到「元器件」下。
+- 后端 API 支持调整已有分类的 `parent_id`，并会拒绝移动到自身或子分类下；当前 CLI 尚未暴露 `category update --parent-id`。
+
 ### 5.6 location — 位置管理
 
 | 命令 | 参数/选项 | 说明 |
@@ -319,6 +327,12 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 | `location update` | `<id> --name --type --description --json` | 修改位置 |
 | `location delete` | `<id>` | 删除位置 |
 | `location items` | `<full_code> --json` | 查看某位置下物品 |
+
+说明：
+
+- 位置支持普通树形位置和可视化收纳盒。收纳盒会自动生成格位位置，`grid` 使用 `A01...C05`，`row` 使用 `01...N`。
+- 收纳盒外观颜色支持预设名 `sage/clay/sand/ink` 或自定义 `#RRGGBB` RGB 编号；前端用它辅助识别实物容器。
+- 普通 `location list/tree` 不逐个展开自动格位；CLI 目前覆盖普通位置 CRUD 和按位置查物品，收纳盒创建、布局调整、格位画布和格位交换请调用后端 API 或前端位置页。
 
 ### 5.7 tag — 标签管理
 
@@ -353,6 +367,7 @@ stash search <query> [--category X] [--location X] [--tag X] [--limit N] [--json
 - 单个上传文件默认最大 50MB，限制来自后端 `max_upload_bytes`。
 - `image add` 只支持 JPEG、PNG、WebP、GIF；其他文件使用 `file add`。
 - `image add --cover` 会将上传图片设置为物品封面。
+- 封面图片用于前端封面和缩略图展示；普通 `file add` 上传的图片仍作为资料附件展示。
 
 ### 5.10 backup — 备份管理
 

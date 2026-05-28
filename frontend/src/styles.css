@@ -3,8 +3,8 @@
 @tailwind utilities;
 
 :root {
-  color: #121721;
-  background: #f7f9fc;
+  color: #252921;
+  background: #faf7f0;
   font-synthesis: none;
   text-rendering: geometricPrecision;
 }
@@ -22,8 +22,8 @@ body,
 body {
   margin: 0;
   min-width: 320px;
-  background: #f7f9fc;
-  color: #121721;
+  background: #faf7f0;
+  color: #252921;
   font-family:
     Inter,
     ui-sans-serif,
@@ -41,9 +41,17 @@ textarea {
   font: inherit;
 }
 
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 .thin-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #c7d0df transparent;
+  scrollbar-color: #d4cebf transparent;
 }
 
 .thin-scrollbar::-webkit-scrollbar {
@@ -52,6 +60,6 @@ textarea {
 }
 
 .thin-scrollbar::-webkit-scrollbar-thumb {
-  background: #c7d0df;
+  background: #d4cebf;
   border-radius: 999px;
 }

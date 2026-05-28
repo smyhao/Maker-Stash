@@ -73,6 +73,18 @@ class CategoryService:
             )
         )
 
+    def branch_ids(self, category: Category) -> list[int]:
+        children_by_parent: dict[int | None, list[int]] = {}
+        for node_id, parent_id in self.db.execute(select(Category.id, Category.parent_id)).all():
+            children_by_parent.setdefault(parent_id, []).append(node_id)
+        result: list[int] = []
+        pending = [category.id]
+        while pending:
+            node_id = pending.pop()
+            result.append(node_id)
+            pending.extend(children_by_parent.get(node_id, []))
+        return result
+
     def create(self, payload: CategoryCreate, is_system: bool = False) -> Category:
         validate_code(payload.code_prefix, "code_prefix")
         if payload.parent_id is not None:
@@ -88,7 +100,12 @@ class CategoryService:
 
     def update(self, category_id: int, payload: CategoryUpdate) -> Category:
         category = self.get(category_id)
-        for key, value in payload.model_dump(exclude_unset=True).items():
+        data = payload.model_dump(exclude_unset=True)
+        if "parent_id" in data and data["parent_id"] is not None:
+            if data["parent_id"] in self.branch_ids(category):
+                raise AppError("CATEGORY_PARENT_INVALID", "分类不能移动到自身或子分类下")
+            self.get(data["parent_id"])
+        for key, value in data.items():
             setattr(category, key, value)
         self.db.commit()
         self.db.refresh(category)

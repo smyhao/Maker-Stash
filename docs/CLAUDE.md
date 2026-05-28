@@ -24,7 +24,7 @@ backend/
     cli/            CLI 客户端（client.py 含 upload/download 支持）
     scripts/        初始化脚本
   alembic/          数据库迁移
-  tests/            pytest 测试（25 个）
+  tests/            pytest 测试
 
 frontend/
   src/
@@ -71,10 +71,14 @@ cd backend && ../.venv/Scripts/python.exe -m app.cli.main --help
 
 ## 数据模型
 
-13 个核心表: Item, Category, Location, Tag/ItemTag, Alias, Note, Attachment, Identifier, AttributeDefinition/ItemAttributeValue, Backup, ApiToken, SystemSetting
+核心表: Item, Category, Location, Tag/ItemTag, Alias, Note, Attachment, Identifier, AttributeDefinition/ItemAttributeValue, Backup, ApiToken, SystemSetting, AuditLog, IdempotencyRecord, TaskJob, WorkflowPlan
 
 物品编号格式: `{PREFIX}-{000001}`（如 FIL-000001）
 位置编号格式: `WS.CAB-A.S02.G03`（层级 full_code）
+
+分类是树形结构。分类筛选、搜索筛选和统计均按分类分支处理，父分类包含所有子孙分类物品。
+
+位置支持普通树形位置和可视化收纳盒。收纳盒布局类型为 `grid` / `row`，自动格位编号为 `A01...` 或 `01...N`；自动格位不在普通位置树中逐个展开，格位画布通过专用接口读取。收纳盒外观颜色保存为预设名或 `#RRGGBB` RGB 编号。
 
 ## 搜索
 
@@ -84,9 +88,17 @@ cd backend && ../.venv/Scripts/python.exe -m app.cli.main --help
 
 `/api/search` 支持额外过滤：`category`、`location`、`tag`、`include_archived`。
 
+`category` 过滤传入父分类时包含所有子孙分类。
+
 `/api/items` 的 `q` 参数使用同样的全字段搜索。
 
 搜索结果返回 `matched_by` 标记命中维度。
+
+前端全局搜索建议复用 `/api/items?q=` 获取候选物品，点击后跳到库存页并选中详情。
+
+## 封面与附件
+
+封面图片用于详情封面和缩略图，附件区只隐藏当前封面资产；普通附件入口上传的图片仍应作为资料附件展示。
 
 ## CLI 命令
 
@@ -107,6 +119,7 @@ CLI 客户端支持 `request()`, `upload()`, `download()` 三种操作。
 - 备份存在 `backend/data/backups/`
 - 删除物品默认软删除（is_archived=True）
 - 位置 code/full_code 创建后不建议修改
+- 收纳盒自动格位的占用规则是一个未归档物品记录对应一个格位；空格位可通过物品移动接口放入已有物品，已占格位之间交换必须走专用原子接口
 - API Token 校验默认开启，测试时关闭
 - 前端 vite.config.ts 已配置 `/api` 代理到后端 8000 端口
 - Notes 支持 operator 和 metadata_json 字段，所有数量操作自动记录 quantity_change/quantity_after

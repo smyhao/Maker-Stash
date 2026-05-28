@@ -5,7 +5,10 @@ import { Cpu, Package, ScrollText, Wrench } from 'lucide-vue-next'
 import { downloadAttachmentFile, downloadAttachmentThumbnail } from '@/api/items'
 import type { Item } from '@/types'
 
-const props = defineProps<{ item: Item }>()
+const props = withDefaults(defineProps<{ item: Item; showFallback?: boolean; compact?: boolean }>(), {
+  showFallback: true,
+  compact: false,
+})
 const imageUrl = ref<string | null>(null)
 
 function clearImage() {
@@ -37,8 +40,15 @@ onBeforeUnmount(clearImage)
 </script>
 
 <template>
-  <span class="grid h-[56px] w-[74px] shrink-0 place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100">
-    <img v-if="imageUrl" :src="imageUrl" :alt="item.name" class="h-full w-full object-cover" />
+  <span
+    v-if="imageUrl || props.showFallback"
+    class="grid shrink-0 place-items-center overflow-hidden"
+    :class="[
+      props.compact ? 'h-9 w-12 rounded-md' : 'h-[56px] w-[74px] rounded-[8px]',
+      imageUrl ? 'bg-transparent' : 'border border-line bg-gradient-to-br from-white to-slate-100',
+    ]"
+  >
+    <img v-if="imageUrl" :src="imageUrl" :alt="item.name" class="h-full w-full object-contain" />
     <Cpu v-else-if="item.code.startsWith('ELE')" :size="32" class="text-slate-700" />
     <Wrench v-else-if="item.code.startsWith('TOOL')" :size="32" class="text-slate-700" />
     <ScrollText v-else-if="item.code.startsWith('FIL')" :size="34" class="text-slate-900" />

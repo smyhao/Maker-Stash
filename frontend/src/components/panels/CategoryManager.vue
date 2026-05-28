@@ -34,6 +34,18 @@ const flatCategories = computed(() => {
 })
 
 const selectedCategory = computed(() => flatCategories.value.find((category) => category.id === selectedId.value) || null)
+const parentOptions = computed(() => {
+  if (editorMode.value !== 'edit' || !selectedCategory.value) return flatCategories.value
+  const excluded = new Set<number>([selectedCategory.value.id])
+  const collect = (nodes: Category[]) => {
+    nodes.forEach((node) => {
+      excluded.add(node.id)
+      collect(node.children || [])
+    })
+  }
+  collect(selectedCategory.value.children || [])
+  return flatCategories.value.filter((category) => !excluded.has(category.id))
+})
 
 function normalizeSlug(value: string) {
   return value
@@ -49,6 +61,11 @@ function normalizeCodePrefix(value: string) {
     .toUpperCase()
     .replace(/\s+/g, '-')
     .replace(/[^A-Z0-9-]/g, '')
+}
+
+function countLabel(category: Category) {
+  const count = store.categoryCounts.get(category.id) || 0
+  return category.children?.length ? `${count} 件（含子类）` : `${count} 件`
 }
 
 function resetForm() {
@@ -181,7 +198,7 @@ async function removeCategory(category: Category) {
             <span class="block truncate text-[14px] font-medium">{{ category.name }}</span>
             <span class="block text-[12px] text-muted">{{ category.slug }} · {{ category.code_prefix }}</span>
           </span>
-          <span class="rounded-[6px] bg-slate-100 px-2 py-1 text-[12px] text-muted">{{ store.categoryCounts.get(category.id) || 0 }}</span>
+          <span class="rounded-[6px] bg-slate-100 px-2 py-1 text-[12px] text-muted" :title="countLabel(category)">{{ countLabel(category) }}</span>
           <button class="grid h-8 w-8 place-items-center rounded-[6px] border border-line text-ink/70 hover:border-blue hover:text-blue" @click.stop="prepareCreate(category)">
             <Plus :size="14" />
           </button>
@@ -230,9 +247,9 @@ async function removeCategory(category: Category) {
 
           <label>
             <span class="mb-1 block text-[13px] text-muted">父分类</span>
-            <select v-model="form.parentId" :disabled="editorMode === 'edit'" class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue disabled:bg-slate-50">
+            <select v-model="form.parentId" class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue">
               <option value="">无</option>
-              <option v-for="category in flatCategories" :key="category.id" :value="String(category.id)">
+              <option v-for="category in parentOptions" :key="category.id" :value="String(category.id)">
                 {{ `${'　'.repeat(category.depth)}${category.name}` }}
               </option>
             </select>
@@ -250,7 +267,7 @@ async function removeCategory(category: Category) {
         </div>
 
         <div v-if="editorMode === 'edit'" class="mt-4 rounded-[8px] border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-          已有分类当前只允许修改名称、排序和描述；slug 与编号前缀保持稳定，避免已有物品编号和外部调用失配。
+          slug 与编号前缀保持稳定，避免已有物品编号和外部调用失配；可调整父分类以整理分类层级。
         </div>
 
         <div class="mt-5 flex justify-end gap-3">

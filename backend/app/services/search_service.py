@@ -145,9 +145,10 @@ class SearchService:
         if not include_archived:
             stmt = stmt.where(Item.is_archived.is_(False))
         if category:
-            found = CategoryService(self.db).find_by_any(category)
+            category_service = CategoryService(self.db)
+            found = category_service.find_by_any(category)
             if found:
-                stmt = stmt.where(Item.category_id == found.id)
+                stmt = stmt.where(Item.category_id.in_(category_service.branch_ids(found)))
         if location:
             found_location = LocationService(self.db).get_by_code(location)
             stmt = stmt.where(Item.location_id == found_location.id)

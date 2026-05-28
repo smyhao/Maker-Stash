@@ -18,6 +18,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useInventoryStore()
+const parentLocations = computed(() => store.flatLocations.filter((location) => !location.is_slot && !location.layout_type))
 const title = computed(() => (props.mode === 'create' ? '新增位置' : '编辑位置'))
 const codeHint = computed(() => (props.mode === 'create' ? '留空会自动生成编号' : '编号创建后不可修改'))
 const formError = ref('')
@@ -99,7 +100,7 @@ function submit() {
           <span class="mb-1 block text-[13px] text-muted">父位置</span>
           <select v-model="form.parentCode" :disabled="mode === 'edit'" class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue disabled:bg-slate-50">
             <option value="">无</option>
-            <option v-for="location in store.flatLocations" :key="location.id" :value="location.full_code">
+            <option v-for="location in parentLocations" :key="location.id" :value="location.full_code">
               {{ `${'　'.repeat(location.depth)}${location.name} (${location.full_code})` }}
             </option>
           </select>

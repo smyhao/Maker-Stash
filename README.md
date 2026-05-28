@@ -39,9 +39,11 @@
 
 ### 分类 & 位置
 
-- **分类**：树形结构，每个分类有编号前缀（元器件=ELE、3D耗材=FIL、工具=TOOL 等）
+- **分类**：树形结构，每个分类有编号前缀（元器件=ELE、3D耗材=FIL、工具=TOOL 等）；父分类筛选会包含全部子分类物品，例如「元器件」可包含「电阻」「电容」等子类
 - **位置**：层级位置编号系统（如 `WS.CAB-A.S02.G03` = 工坊.A柜.第二层.03格）
-- 位置树可视化，按位置筛选物品
+- **可视化收纳盒**：普通位置可配置为 `grid` 或 `row` 容器，自动生成格位（如 `A01...C05`），用于映射真实分格盒/抽屉
+- 收纳盒支持外观颜色，用于辅助识别真实容器；颜色可使用预设名或 `#RRGGBB` RGB 编号
+- 位置树可视化，按位置筛选物品；桌面端支持格位详情、选择已有物品放入空格、整理移动和确认交换，移动端只读定位
 
 ### 搜索
 
@@ -55,6 +57,8 @@ WS.DRY  → 干燥箱下的所有物品（匹配位置编号）
 ```
 
 搜索范围：名称、编号、分类、标签、别名、位置、备注、自定义属性、附件名。
+
+前端全局搜索框会在输入时显示匹配物品建议，点击建议可直接跳到库存页并打开物品详情栏。
 
 ### 标签 & 别名
 
@@ -74,7 +78,8 @@ ESP32-S3：    型号=ESP32-S3  Flash=4MB  通信=Wi-Fi+BLE
 ### 图片 & 附件
 
 - 上传物品照片、Datasheet、说明书、发票等
-- 支持设置封面图
+- 支持设置封面图；封面图片用于详情页封面和缩略图，不作为普通资料附件重复展示
+- 附件区主要用于手册、数据表、说明文档等资料；通过附件入口上传的普通图片仍会保留在附件列表中
 - 文件存本地目录，数据库只存元信息
 - 删除附件会同步释放原文件和缩略图；删除封面会同步清空物品封面引用
 
@@ -135,7 +140,7 @@ CLI 客户端 ──→  REST API  ──→  （同上）
 backend/app/
 ├── api/routes/       路由层 — 只处理请求参数和响应
 ├── core/             配置、数据库、安全、统一响应、错误处理
-├── models/           SQLAlchemy 数据模型（13 个表）
+├── models/           SQLAlchemy 数据模型（18 张业务表）
 ├── schemas/          Pydantic 请求/响应结构
 ├── services/         业务逻辑层
 ├── repositories/     数据访问层
@@ -188,6 +193,17 @@ WS.CAB-A        工坊 → A柜
 WS.CAB-A.S02    工坊 → A柜 → 第二层
 WS.CAB-A.S02.G03  工坊 → A柜 → 第二层 → 03格
 ```
+
+**可视化格位编号** — 容器下自动生成叶子格位：
+
+```
+WS.BOX-A        透明分格盒 A（3 x 5 网格）
+WS.BOX-A.A01    第一行第 1 格
+WS.BOX-A.B03    第二行第 3 格
+WS.DRAWER.01    单排抽屉第 1 格
+```
+
+格位不在普通位置树中逐个展开；通过位置页的格位画布或 `/api/locations/{id}/board` 查询。首版一个格位最多放一条未归档物品记录，移动到已占格位会返回冲突，交换必须使用专用操作。桌面端空格位可直接选择已有物品放入，也可新建物品并放入该格。
 
 ---
 
@@ -319,6 +335,7 @@ stash item find-id QR-ELE-000001
 stash category list
 stash category tree
 stash category add "树脂材料" --slug resin --prefix RES
+stash category add "电阻" --slug resistor --prefix RES --parent-id 1
 stash category update 3 --name "3D打印耗材"
 stash category delete 7
 ```
@@ -515,7 +532,7 @@ Maker-Stash/
 │   │   ├── api/routes/       API 路由（items, categories, locations, search, ...）
 │   │   ├── cli/              CLI 客户端（config, client, commands）
 │   │   ├── core/             配置、数据库、安全、统一响应、错误处理
-│   │   ├── models/           数据模型（13 个表）
+│   │   ├── models/           数据模型（18 张业务表）
 │   │   ├── repositories/     数据访问层
 │   │   ├── schemas/          Pydantic 请求/响应结构
 │   │   ├── scripts/          初始化脚本（建库、创建 Token）

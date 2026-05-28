@@ -43,7 +43,7 @@ function categoryName(item: Item) {
           <dt class="text-muted">类型</dt>
           <dd class="truncate">{{ categoryName(item) }}</dd>
           <dt class="text-muted">位置</dt>
-          <dd class="truncate">{{ item.location_text || '未记录' }}</dd>
+          <dd class="truncate">{{ item.location_display || item.location_text || '未记录' }}</dd>
           <dt class="text-muted">数量</dt>
           <dd><b class="text-[16px]">{{ item.quantity ?? '—' }}</b><span class="ml-1">{{ item.unit || '' }}</span></dd>
         </dl>

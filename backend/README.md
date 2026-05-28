@@ -83,6 +83,7 @@ python -m app.cli.main note add FIL-000001 "打印前建议烘干"
 python -m app.cli.main category list
 python -m app.cli.main category tree
 python -m app.cli.main category add "树脂材料" --slug resin --prefix RES
+python -m app.cli.main category add "电阻" --slug resistor --prefix RES --parent-id 1
 python -m app.cli.main category update 3 --name "3D打印耗材"
 python -m app.cli.main category delete 7
 
@@ -158,7 +159,26 @@ stash search PLA --json
 
 - `/api/search?q=xxx` — 搜索接口，支持 category/location/tag 过滤
 - `/api/items?q=xxx` — 物品列表也使用全字段搜索
+- `category` 过滤支持分类 slug、名称或 ID；传入父分类时会包含所有子分类和孙分类物品
 - 搜索结果包含 `matched_by` 标记命中维度
+- 前端全局搜索框基于 `/api/items?q=` 提供物品建议，下拉项可直接跳到库存详情。
+
+## 分类与位置扩展
+
+- 分类是树形结构。分类管理页可调整已有分类的父分类，用于把「电阻」「电容」等子类归入「元器件」；后端会拒绝把分类移动到自身或子分类下。
+- 分类统计会把子分类物品汇总到父分类，库存页左侧分类栏可展开/收起子分类。
+- 普通位置继续支持多物品承载；可视化收纳盒是位置树上的扩展能力。
+- 可视化收纳盒支持 `grid` 和 `row` 两种布局。`grid` 自动生成 `A01...C05` 形式的格位，`row` 自动生成 `01...N` 形式的格位。
+- 收纳盒外观颜色保存在 `appearance_color`，支持预设名 `sage/clay/sand/ink` 或自定义 `#RRGGBB` RGB 编号；前端用它渲染位置树色条、格位画布和布局预览。
+- 格位是自动生成的叶子位置，不在普通 `/locations/tree` 中逐个展开；通过专用格位画布接口读取。
+- 首版一个格位最多绑定一条未归档物品记录。移动到空格位使用物品移动接口；前端空格位可搜索并选择已有物品放入。已占格位之间交换必须使用收纳盒交换接口。
+- 物品响应中的 `location_display` 可直接用于展示「透明分格盒 A · B03」这类结构化位置文本。
+
+## 封面与资料附件
+
+- 图片接口用于封面/缩略图资产，`image add --cover` 会更新物品封面。
+- 普通附件接口用于手册、数据表、说明文档等资料，也允许上传普通图片。
+- 前端附件列表只隐藏当前封面资产，避免封面图在“附件”区域重复出现；通过附件入口上传的图片仍会作为资料附件展示。
 
 ## 写入边界与工作流
 
@@ -175,7 +195,9 @@ stash search PLA --json
 - ORM 使用 SQLAlchemy 2.x，Schema 使用 Pydantic。
 - 数据库结构只通过 Alembic 迁移维护，应用启动不隐式建表。
 - 物品编号按分类前缀递增，例如 `FIL-000001`。
+- 分类筛选以分类分支为单位；父分类包含所有子孙分类。
 - 位置 `code/full_code` 第一版创建后不允许修改。
+- 收纳盒格位由容器布局自动生成，格位编号创建后应保持稳定，便于实物贴标。
 - 删除物品默认归档；如确认同时删除附件，调用 `DELETE /api/items/{id_or_code}?delete_attachments=true`，并同步释放上传文件和缩略图。
 - 归档物品保留查询和备注能力，但不允许库存或位置继续变化。
 - 备份恢复前会先创建当前快照。

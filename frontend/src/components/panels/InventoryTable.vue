@@ -50,7 +50,7 @@ function categoryName(item: Item) {
             <b class="text-[16px] 2xl:text-[17px]">{{ item.quantity ?? '—' }}</b>
             <span class="ml-1 text-[13px]">{{ item.unit }}</span>
           </span>
-          <span class="truncate text-[14px]">{{ item.location_text || '未记录' }}</span>
+          <span class="truncate text-[14px]">{{ item.location_display || item.location_text || '未记录' }}</span>
           <StatusDot :status="item.status" />
           <span class="flex flex-wrap gap-2">
             <span class="rounded-[5px] border border-line px-2 py-1 text-[12px] text-ink/80">{{ item.code.split('-')[0] }}</span>

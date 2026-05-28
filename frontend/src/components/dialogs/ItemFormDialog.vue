@@ -9,6 +9,8 @@ const props = defineProps<{
   open: boolean
   mode: 'create' | 'edit'
   item: Item | null
+  locationCode?: string | null
+  locationLabel?: string | null
   busy?: boolean
 }>()
 
@@ -52,7 +54,7 @@ watch(
       : props.item?.category_id
         ? String(props.item.category_id)
         : ''
-    form.locationText = props.item?.location_text || ''
+    form.locationText = props.mode === 'create' && props.locationLabel ? props.locationLabel : props.item?.location_text || ''
     form.quantity = props.item?.quantity == null ? '' : String(props.item.quantity)
     form.unit = props.item?.unit || ''
     form.status = props.item?.status || 'normal'
@@ -102,6 +104,7 @@ function submit() {
 
   if (props.mode === 'create') {
     payload.category = form.category || null
+    payload.location_code = props.locationCode || null
     payload.tags = tags
     payload.note = form.note.trim() || null
   } else {
@@ -123,6 +126,9 @@ function submit() {
       </header>
 
       <div class="grid gap-4 p-5 sm:grid-cols-2">
+        <div v-if="mode === 'create' && locationCode" class="sm:col-span-2 rounded-xl border border-green/20 bg-green/10 px-3 py-2 text-[13px] text-green">
+          新物品将直接放入格位：{{ locationLabel || locationCode }}
+        </div>
         <label class="sm:col-span-2">
           <span class="mb-1 block text-[13px] text-muted">名称</span>
           <input v-model="form.name" required class="h-10 w-full rounded-[8px] border border-line px-3 outline-none focus:border-blue" />

@@ -232,6 +232,11 @@ class LocationTreeNode(LocationRead):
 | GET | `/api/system/info` | 系统信息（版本/数量/认证状态/最近备份） |
 | GET | `/api/stats/overview` | 统计概览（物品/低库存/补货/分类分布/位置分布） |
 
+统计说明：
+
+- `category_counts` 会把子分类和孙分类物品汇总到父分类。
+- `location_counts` 不展开自动格位；收纳盒内格位物品会汇总到所属收纳盒。
+
 ### 4.2 物品 (items)
 
 | 方法 | 路径 | 说明 |
@@ -258,7 +263,7 @@ class LocationTreeNode(LocationRead):
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `q` | string | 全字段搜索（10 维度） |
-| `category` | string | 分类 slug/名称/ID |
+| `category` | string | 分类 slug/名称/ID；传入父分类时包含全部子孙分类 |
 | `location` | string | 位置 full_code |
 | `tag` | string | 标签名（精确匹配） |
 | `status` | string | 状态过滤（normal/low/empty/broken/missing/idle） |
@@ -313,7 +318,7 @@ class LocationTreeNode(LocationRead):
 **ItemRead 响应字段：**
 
 ```
-id, code, name, category_id, location_id, location_text, quantity, unit,
+id, code, name, category_id, location_id, location_text, location_display, quantity, unit,
 status, description, need_restock, is_favorite, cover_attachment_id,
 is_archived, created_at, updated_at
 ```
@@ -337,11 +342,18 @@ is_archived, created_at, updated_at
 
 **CategoryCreate：** `name`(必填), `slug`(必填), `code_prefix`(必填), `parent_id`, `sort_order`, `description`
 
-**CategoryUpdate：** `name`, `sort_order`, `description`
+**CategoryUpdate：** `name`, `parent_id`, `sort_order`, `description`
 
 **CategoryRead：** `id, name, slug, code_prefix, parent_id, sort_order, description, is_system, created_at, updated_at`
 
 **CategoryTreeNode：** CategoryRead + `children: list[CategoryTreeNode]`
+
+**分类树语义：**
+
+- `parent_id` 可用于把已有分类移动到新的父分类下。
+- 后端拒绝把分类移动到自身或任意子分类下，避免循环树。
+- `/api/items?category=...` 和 `/api/search?category=...` 以分类分支为过滤范围；例如传入「元器件」会返回「元器件」自身以及「电阻」「电容」等子孙分类的物品。
+- `/api/stats/overview` 的 `category_counts` 会把子孙分类数量汇总进父分类。
 
 ### 4.4 位置 (locations)
 
@@ -354,6 +366,11 @@ is_archived, created_at, updated_at
 | GET | `/api/locations/{id}/items` | 按 ID 查下级物品 |
 | GET | `/api/locations/by-code/{full_code}` | 按 full_code 查详情 |
 | GET | `/api/locations/by-code/{full_code}/items` | 按 full_code 查下级物品 |
+| POST | `/api/locations/containers` | 创建可视化收纳盒并生成格位 |
+| POST | `/api/locations/{id}/container` | 将已有位置转换为可视化收纳盒 |
+| PATCH | `/api/locations/{id}/container` | 修改收纳盒布局/外观 |
+| GET | `/api/locations/{id}/board` | 获取收纳盒格位画布及占用摘要 |
+| POST | `/api/locations/{id}/swap` | 在同一收纳盒内原子交换两个已占格位 |
 | PATCH | `/api/locations/{id}` | 修改位置（name/type/description/sort_order） |
 | DELETE | `/api/locations/{id}` | 删除位置（非空禁止删除） |
 
@@ -361,9 +378,49 @@ is_archived, created_at, updated_at
 
 **LocationUpdate：** `name`, `type`, `description`, `sort_order`
 
-**LocationRead：** `id, name, code, full_code, parent_id, type, description, sort_order, created_at, updated_at`
+**LocationRead：** `id, name, code, full_code, parent_id, type, description, sort_order, layout_type, layout_rows, layout_columns, appearance_color, appearance_icon, is_slot, slot_key, slot_order, created_at, updated_at`
 
 **注意：** `code` 和 `full_code` 创建后不可修改。
+
+**可视化收纳盒：**
+
+`ContainerCreate` / `ContainerUpdate` 的布局字段：
+
+```json
+{
+  "name": "透明分格盒 A",
+  "code": "BOX-A",
+  "parent_code": "WS.CAB-A",
+  "type": "box",
+  "layout_type": "grid",
+  "layout_rows": 3,
+  "layout_columns": 5,
+  "appearance_color": "#5F7F67",
+  "appearance_icon": "box"
+}
+```
+
+- `layout_type` 仅支持 `grid` 和 `row`。
+- `appearance_color` 支持预设值 `sage/clay/sand/ink`，也支持自定义 RGB 十六进制编号 `#RRGGBB`，例如 `#5F7F67`。
+- `grid` 使用 `A01...C05` 格位编号；`row` 使用 `01...N` 编号。
+- 普通 `/api/locations` 和 `/api/locations/tree` 默认不返回自动格位，避免列表被叶子节点污染。
+- `GET /api/locations/{id}/board` 返回 `{ container, slots }`，每个 slot 包含 `location` 和可为空的 `item`。
+- 一个格位最多绑定一条未归档物品记录。向空格位放置已有物品使用物品移动接口；向已占格位移动会返回 `SLOT_OCCUPIED`。
+- 缩小布局时，如果待删除格位仍有物品，返回 `CONTAINER_RESIZE_OCCUPIED`。
+- 转换已有非空位置时，请求体需要 `assignments`，必须把该位置直接绑定的每条未归档物品分配到唯一格位。
+
+**格位交换请求体：**
+
+```json
+{
+  "source_item_code": "ELE-000001",
+  "target_slot_key": "B03",
+  "source": "web",
+  "module": "locations"
+}
+```
+
+交换只适用于同一收纳盒内两个已占格位，在一个事务中更新双方位置并写入记录。
 
 ### 4.5 搜索 (search)
 
@@ -372,6 +429,8 @@ is_archived, created_at, updated_at
 | GET | `/api/search` | 全字段搜索 |
 
 **查询参数：** `q`(必填), `category`, `location`, `tag`, `limit`(默认20), `include_archived`(默认false)
+
+`category` 与物品列表一致，按分类分支过滤；传入父分类时包含所有子孙分类。
 
 **搜索结果字段：**
 
@@ -383,6 +442,8 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 `matched_by` 可能值：`name`, `code`, `description`, `alias`, `tag`, `attribute`, `note`, `attachment`, `category`, `location`
 
 搜索逻辑在 `services/search_service.py` 的 `fulltext_where()` 函数，`/api/items?q=` 和 `/api/search` 共用。
+
+前端全局搜索建议使用 `/api/items?q=<keyword>&page=1&page_size=6` 获取候选物品，点击候选后切到库存页并选中对应物品。该交互不需要额外 API。
 
 ### 4.6 标签 (tags)
 
@@ -451,6 +512,12 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 **AttachmentRead：** `id, item_id, attachment_type, original_name, stored_name, file_path, thumbnail_path, mime_type, size_bytes, description, is_cover, is_deleted, created_at`
 
 上传约束：单文件默认 50MB；图片只支持 JPEG/PNG/WebP/GIF；`is_cover=true` 会把上传图片设置为物品封面。
+
+前端展示约定：
+
+- 物品详情封面和列表缩略图优先使用 `cover_attachment_id` 指向的图片。
+- 附件区面向手册、数据表、说明文档等资料，只隐藏当前封面资产，避免重复显示封面图。
+- 通过普通附件入口上传的图片仍属于资料附件，应继续在附件列表展示。
 
 删除语义：
 

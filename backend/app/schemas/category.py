@@ -14,6 +14,7 @@ class CategoryCreate(BaseModel):
 
 class CategoryUpdate(BaseModel):
     name: str | None = None
+    parent_id: int | None = None
     sort_order: int | None = None
     description: str | None = None
 

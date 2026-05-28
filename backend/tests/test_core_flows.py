@@ -791,6 +791,46 @@ def test_tree_endpoints_and_item_pagination() -> None:
     assert len(data["items"]) == 2
 
 
+def test_parent_category_filters_and_counts_include_descendants() -> None:
+    client = TestClient(create_app())
+    parent = client.post(
+        "/api/categories",
+        json={"name": "电子零件", "slug": "electronic-parts", "code_prefix": "EP"},
+    ).json()["data"]
+    child = client.post(
+        "/api/categories",
+        json={"name": "电阻", "slug": "resistors", "code_prefix": "RES", "parent_id": parent["id"]},
+    ).json()["data"]
+    grandchild = client.post(
+        "/api/categories",
+        json={"name": "贴片电阻", "slug": "smd-resistors", "code_prefix": "SMD", "parent_id": child["id"]},
+    ).json()["data"]
+
+    parent_item = client.post("/api/items", json={"name": "电子测试套装", "category": parent["slug"]}).json()["data"]
+    child_item = client.post("/api/items", json={"name": "通孔电阻", "category": child["slug"]}).json()["data"]
+    grandchild_item = client.post("/api/items", json={"name": "贴片电阻 0603", "category": grandchild["slug"]}).json()["data"]
+
+    parent_items = client.get(f"/api/items?category={parent['slug']}&page_size=100").json()["data"]["items"]
+    assert {item["code"] for item in parent_items} == {
+        parent_item["code"],
+        child_item["code"],
+        grandchild_item["code"],
+    }
+    child_items = client.get(f"/api/items?category={child['slug']}&page_size=100").json()["data"]["items"]
+    assert {item["code"] for item in child_items} == {child_item["code"], grandchild_item["code"]}
+
+    search_items = client.get(f"/api/search?q=电阻&category={parent['slug']}").json()["data"]["items"]
+    assert {item["code"] for item in search_items} == {child_item["code"], grandchild_item["code"]}
+
+    category_counts = {
+        entry["category_id"]: entry["count"]
+        for entry in client.get("/api/stats/overview").json()["data"]["category_counts"]
+    }
+    assert category_counts[parent["id"]] == 3
+    assert category_counts[child["id"]] == 2
+    assert category_counts[grandchild["id"]] == 1
+
+
 def test_attribute_definition_and_item_attribute_flow() -> None:
     client = TestClient(create_app())
     categories = client.get("/api/categories").json()["data"]["categories"]
@@ -902,6 +942,155 @@ def test_location_items_by_id() -> None:
     items = items_response.json()["data"]["items"]
     assert len(items) >= 1
     assert items[0]["location_id"] == loc["id"]
+
+
+def test_visual_container_creates_slots_and_hides_them_from_tree() -> None:
+    client = TestClient(create_app())
+
+    response = client.post(
+        "/api/locations/containers",
+        json={
+            "name": "透明分格盒 A",
+            "code": "BOX-01",
+            "parent_code": "WS",
+            "layout_type": "grid",
+            "layout_rows": 3,
+            "layout_columns": 5,
+            "appearance_color": "sage",
+            "appearance_icon": "box",
+        },
+    )
+    assert response.status_code == 200
+    container = response.json()["data"]
+    assert container["layout_type"] == "grid"
+    assert container["appearance_color"] == "sage"
+
+    board = client.get(f"/api/locations/{container['id']}/board").json()["data"]
+    assert [slot["location"]["slot_key"] for slot in board["slots"]] == [
+        "A01", "A02", "A03", "A04", "A05",
+        "B01", "B02", "B03", "B04", "B05",
+        "C01", "C02", "C03", "C04", "C05",
+    ]
+
+    tree = client.get("/api/locations/tree").json()["data"]["locations"]
+    ws = next(node for node in tree if node["full_code"] == "WS")
+    box = next(node for node in ws["children"] if node["full_code"] == "WS.BOX-01")
+    assert box["children"] == []
+    child = client.post(
+        "/api/locations/containers",
+        json={"name": "嵌套盒", "code": "NESTED", "parent_code": "WS.BOX-01", "layout_type": "row", "layout_columns": 2},
+    )
+    assert child.status_code == 400
+    assert child.json()["error"]["code"] == "CONTAINER_CHILD_FORBIDDEN"
+
+    custom = client.patch(
+        f"/api/locations/{container['id']}/container",
+        json={"layout_type": "grid", "layout_rows": 3, "layout_columns": 5, "appearance_color": "#4f7a63"},
+    )
+    assert custom.status_code == 200
+    assert custom.json()["data"]["appearance_color"] == "#4F7A63"
+
+    invalid = client.patch(
+        f"/api/locations/{container['id']}/container",
+        json={"layout_type": "grid", "layout_rows": 3, "layout_columns": 5, "appearance_color": "rgb(1,2,3)"},
+    )
+    assert invalid.status_code == 422
+
+
+def test_visual_container_conversion_requires_and_applies_assignments() -> None:
+    client = TestClient(create_app())
+    location = client.post(
+        "/api/locations",
+        json={"name": "待配置抽屉", "code": "DRAWER", "parent_code": "WS"},
+    ).json()["data"]
+    first = client.post(
+        "/api/items",
+        json={"name": "待整理零件", "category": "components", "location_code": location["full_code"]},
+    ).json()["data"]
+    second = client.post(
+        "/api/items",
+        json={"name": "待整理工具", "category": "tools", "location_code": location["full_code"]},
+    ).json()["data"]
+
+    incomplete = client.post(
+        f"/api/locations/{location['id']}/container",
+        json={"layout_type": "row", "layout_columns": 3, "assignments": [{"item_code": first["code"], "slot_key": "01"}]},
+    )
+    assert incomplete.status_code == 400
+    assert incomplete.json()["error"]["code"] == "CONTAINER_ASSIGNMENTS_REQUIRED"
+
+    converted = client.post(
+        f"/api/locations/{location['id']}/container",
+        json={
+            "layout_type": "row",
+            "layout_columns": 3,
+            "assignments": [
+                {"item_code": first["code"], "slot_key": "01"},
+                {"item_code": second["code"], "slot_key": "02"},
+            ],
+        },
+    )
+    assert converted.status_code == 200
+    board = client.get(f"/api/locations/{location['id']}/board").json()["data"]
+    assert board["slots"][0]["item"]["code"] == first["code"]
+    assert board["slots"][0]["item"]["location_display"] == "待配置抽屉 · 01"
+    assert board["slots"][1]["item"]["code"] == second["code"]
+
+
+def test_slot_occupancy_swap_and_resize_protection() -> None:
+    client = TestClient(create_app())
+    container = client.post(
+        "/api/locations/containers",
+        json={"name": "整理盒", "code": "ORG", "parent_code": "WS", "layout_type": "row", "layout_columns": 3},
+    ).json()["data"]
+    first = client.post(
+        "/api/items",
+        json={"name": "零件 A", "category": "components", "location_code": "WS.ORG.01"},
+    ).json()["data"]
+    second = client.post(
+        "/api/items",
+        json={"name": "零件 B", "category": "components", "location_code": "WS.ORG.02"},
+    ).json()["data"]
+
+    location_counts = client.get("/api/stats/overview").json()["data"]["location_counts"]
+    organizer_count = next(entry["count"] for entry in location_counts if entry["full_code"] == "WS.ORG")
+    assert organizer_count == 2
+    assert all(not entry["full_code"].startswith("WS.ORG.") for entry in location_counts)
+
+    conflict = client.post(f"/api/items/{first['code']}/move", json={"location_code": "WS.ORG.02"})
+    assert conflict.status_code == 400
+    assert conflict.json()["error"]["code"] == "SLOT_OCCUPIED"
+
+    swapped = client.post(
+        f"/api/locations/{container['id']}/swap",
+        json={"source_item_code": first["code"], "target_slot_key": "02", "source": "web"},
+    )
+    assert swapped.status_code == 200
+    board = client.get(f"/api/locations/{container['id']}/board").json()["data"]
+    assert board["slots"][0]["item"]["code"] == second["code"]
+    assert board["slots"][1]["item"]["code"] == first["code"]
+
+    blocked_resize = client.patch(
+        f"/api/locations/{container['id']}/container",
+        json={"layout_type": "row", "layout_columns": 1},
+    )
+    assert blocked_resize.status_code == 400
+    assert blocked_resize.json()["error"]["code"] == "CONTAINER_RESIZE_OCCUPIED"
+
+    moved = client.post(f"/api/items/{first['code']}/move", json={"location_code": "WS.ORG.03"})
+    assert moved.status_code == 200
+    resized = client.patch(
+        f"/api/locations/{container['id']}/container",
+        json={"layout_type": "row", "layout_columns": 2},
+    )
+    assert resized.status_code == 400
+    client.post(f"/api/items/{first['code']}/move", json={"location_code": None})
+    resized = client.patch(
+        f"/api/locations/{container['id']}/container",
+        json={"layout_type": "row", "layout_columns": 2},
+    )
+    assert resized.status_code == 200
+    assert len(client.get(f"/api/locations/{container['id']}/board").json()["data"]["slots"]) == 2
 
 
 def test_search_with_filters_and_rich_results() -> None:

@@ -66,7 +66,7 @@ async function inspectItem(code: string) {
           >
             <span class="min-w-0">
               <span class="block truncate text-[14px] font-medium">{{ item.name }}</span>
-              <span class="mt-1 block truncate text-[12px] text-muted">{{ item.code }} · {{ item.location_text || '未记录位置' }}</span>
+              <span class="mt-1 block truncate text-[12px] text-muted">{{ item.code }} · {{ item.location_display || item.location_text || '未记录位置' }}</span>
             </span>
             <span class="rounded-[6px] border border-amber/30 bg-amber/10 px-2 py-1 text-[12px] text-amber">
               {{ item.quantity ?? '—' }} {{ item.unit || '' }}

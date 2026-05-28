@@ -30,3 +30,11 @@ class Item(TimestampMixin, Base):
 
     category = relationship("Category")
     location = relationship("Location")
+
+    @property
+    def location_display(self) -> str | None:
+        if self.location is None:
+            return None
+        if self.location.is_slot and self.location.parent is not None:
+            return f"{self.location.parent.name} · {self.location.slot_key}"
+        return self.location.name

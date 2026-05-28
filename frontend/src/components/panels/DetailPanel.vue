@@ -8,6 +8,9 @@ import { useInventoryStore } from '@/stores/inventory'
 import type { Attachment } from '@/types'
 
 const store = useInventoryStore()
+const props = withDefaults(defineProps<{ allowMove?: boolean }>(), {
+  allowMove: true,
+})
 const emit = defineEmits<{
   addQuantity: []
   useQuantity: []
@@ -40,7 +43,12 @@ const coverAttachment = computed(() => {
     || store.selectedAttachments.find((attachment) => attachment.attachment_type === 'image')
     || null
 })
+const documentAttachments = computed(() => store.selectedAttachments.filter((attachment) => !isCoverAttachment(attachment)))
 const coverUrl = ref<string | null>(null)
+
+function isCoverAttachment(attachment: Attachment) {
+  return attachment.is_cover || attachment.id === item.value?.cover_attachment_id
+}
 
 function clearCoverUrl() {
   if (coverUrl.value) URL.revokeObjectURL(coverUrl.value)
@@ -118,10 +126,10 @@ async function downloadAttachment(attachment: Attachment) {
     </div>
 
       <div class="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3 2xl:px-5 2xl:py-4">
-      <div class="relative grid h-[112px] place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100 2xl:h-[144px]">
-        <img v-if="coverUrl" :src="coverUrl" :alt="item.name" class="h-full w-full object-cover" />
+      <div class="relative grid min-h-[144px] place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100 p-3 2xl:min-h-[176px]">
+        <img v-if="coverUrl" :src="coverUrl" :alt="item.name" class="max-h-[128px] max-w-full object-contain 2xl:max-h-[160px]" />
         <div v-else class="h-[70px] w-[120px] rounded-full bg-[radial-gradient(circle_at_center,#16191f_0,#16191f_40%,#2a2f36_42%,#0c0d10_64%,transparent_65%)] shadow-soft 2xl:h-[88px] 2xl:w-[150px]"></div>
-        <label class="absolute bottom-2 right-2 inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-line bg-white/95 px-3 text-[12px] font-medium text-ink/80 shadow-sm hover:border-blue hover:text-blue">
+        <label class="absolute right-2 top-2 inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-line bg-white/95 px-3 text-[12px] font-medium text-ink/80 shadow-sm hover:border-blue hover:text-blue">
           <Upload :size="14" />封面
           <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" @change="onImageChange" />
         </label>
@@ -131,7 +139,7 @@ async function downloadAttachment(attachment: Attachment) {
         <dt class="text-muted">类型</dt><dd>{{ category }}</dd>
         <dt class="text-muted">编号</dt><dd>{{ item.code }}</dd>
         <dt class="text-muted">数量</dt><dd><b>{{ item.quantity ?? '—' }}</b> {{ item.unit }}</dd>
-        <dt class="text-muted">位置</dt><dd>{{ item.location_text || location || '未记录' }}</dd>
+        <dt class="text-muted">位置</dt><dd>{{ item.location_display || item.location_text || location || '未记录' }}</dd>
         <dt class="text-muted">状态</dt><dd><StatusDot :status="item.status" /></dd>
         <dt class="text-muted">标签</dt>
         <dd class="flex flex-wrap gap-2">
@@ -174,7 +182,7 @@ async function downloadAttachment(attachment: Attachment) {
           <button class="inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-line text-[14px] font-medium text-ink/80" @click="emit('edit')">
             <Pencil :size="17" /> 编辑
           </button>
-          <button class="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-line text-[14px] font-medium text-ink/80" @click="emit('move')">
+          <button v-if="props.allowMove" class="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-line text-[14px] font-medium text-ink/80" @click="emit('move')">
             <MapPinned :size="17" /> 移动位置
           </button>
           <button class="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-[8px] border border-amber/30 text-[14px] font-medium" :class="item.need_restock ? 'bg-amber/10 text-amber' : 'text-ink/80'" @click="emit('restock')">
@@ -194,9 +202,9 @@ async function downloadAttachment(attachment: Attachment) {
             <input type="file" class="hidden" @change="onAttachmentChange" />
           </label>
         </div>
-        <div class="mb-2 text-[12px] text-muted">单个文件最大 50MB；图片封面建议使用 JPEG、PNG、WebP 或 GIF。</div>
+        <div class="mb-2 text-[12px] text-muted">用于存放手册、数据表、说明文档等资料；封面图片不会显示在这里。</div>
         <div class="overflow-hidden rounded-[8px] border border-line">
-          <div v-for="attachment in store.selectedAttachments" :key="attachment.id" class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 last:border-b-0">
+          <div v-for="attachment in documentAttachments" :key="attachment.id" class="flex items-center justify-between gap-3 border-b border-line px-4 py-3 last:border-b-0">
             <div class="min-w-0">
               <div class="truncate text-[14px] font-medium">{{ attachment.original_name }}</div>
               <div class="text-[12px] text-muted">{{ attachment.mime_type || '未知类型' }}</div>
@@ -210,7 +218,7 @@ async function downloadAttachment(attachment: Attachment) {
               </button>
             </div>
           </div>
-          <div v-if="!store.selectedAttachments.length" class="px-4 py-6 text-[14px] text-muted">暂无附件</div>
+          <div v-if="!documentAttachments.length" class="px-4 py-6 text-[14px] text-muted">暂无附件</div>
         </div>
       </div>
 

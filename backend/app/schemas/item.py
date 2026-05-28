@@ -100,6 +100,7 @@ class ItemRead(BaseModel):
     category_id: int | None
     location_id: int | None
     location_text: str | None
+    location_display: str | None = None
     quantity: Decimal | None
     unit: str | None
     status: str

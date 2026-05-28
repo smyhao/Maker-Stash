@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { Box, Heart, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
+import { Boxes, Home, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
 </script>
 
 <template>
   <nav class="grid h-16 grid-cols-5 border-t border-line bg-white text-[12px] text-muted">
     <RouterLink
       v-slot="{ isActive }"
+      :to="{ name: 'home' }"
+      class="grid place-items-center"
+    >
+      <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
+        <Home :size="21" />
+        工作台
+      </span>
+    </RouterLink>
+    <RouterLink
+      v-slot="{ isActive }"
       :to="{ name: 'items' }"
       class="grid place-items-center"
     >
       <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
-        <Box :size="21" />
-        物品
+        <Boxes :size="21" />
+        库存
       </span>
     </RouterLink>
     <RouterLink
@@ -26,16 +36,6 @@ import { Box, Heart, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
     </RouterLink>
     <RouterLink
       v-slot="{ isActive }"
-      :to="{ name: 'favorites' }"
-      class="grid place-items-center"
-    >
-      <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
-        <Heart :size="21" />
-        常用
-      </span>
-    </RouterLink>
-    <RouterLink
-      v-slot="{ isActive }"
       :to="{ name: 'restock' }"
       class="grid place-items-center"
     >
@@ -46,12 +46,12 @@ import { Box, Heart, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
     </RouterLink>
     <RouterLink
       v-slot="{ isActive }"
-      :to="{ name: 'settings' }"
+      :to="{ name: 'management' }"
       class="grid place-items-center"
     >
       <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
         <Settings :size="21" />
-        设置
+        管理
       </span>
     </RouterLink>
   </nav>

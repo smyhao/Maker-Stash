@@ -33,6 +33,14 @@ export interface LocationNode {
   type: string | null
   description: string | null
   sort_order: number
+  layout_type?: 'grid' | 'row' | null
+  layout_rows?: number | null
+  layout_columns?: number | null
+  appearance_color?: string | null
+  appearance_icon?: 'box' | 'drawer' | 'shelf' | null
+  is_slot?: boolean
+  slot_key?: string | null
+  slot_order?: number | null
   children?: LocationNode[]
 }
 
@@ -52,6 +60,7 @@ export interface Item {
   category_id: number | null
   location_id: number | null
   location_text: string | null
+  location_display?: string | null
   quantity: string | number | null
   unit: string | null
   status: Status
@@ -60,6 +69,38 @@ export interface Item {
   is_favorite: boolean
   cover_attachment_id: number | null
   is_archived: boolean
+}
+
+export interface ContainerLayoutPayload {
+  layout_type: 'grid' | 'row'
+  layout_rows: number
+  layout_columns: number
+  appearance_color: string
+  appearance_icon: 'box' | 'drawer' | 'shelf'
+}
+
+export interface ContainerCreatePayload extends ContainerLayoutPayload {
+  name: string
+  code: string
+  parent_code?: string | null
+  type?: string | null
+  description?: string | null
+  sort_order?: number
+}
+
+export interface SlotAssignment {
+  item_code: string
+  slot_key: string
+}
+
+export interface ContainerBoardSlot {
+  location: LocationNode
+  item: Item | null
+}
+
+export interface ContainerBoard {
+  container: LocationNode
+  slots: ContainerBoardSlot[]
 }
 
 export interface ItemFormPayload {
