@@ -895,6 +895,30 @@ def test_system_info_and_validation_error_shape() -> None:
     assert body["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_system_capabilities_are_extension_safe() -> None:
+    client = TestClient(create_app())
+
+    response = client.get("/api/system/capabilities")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    capabilities = body["data"]
+    assert capabilities["app"] == "workshop-stash"
+    assert capabilities["api_version"] == "0.1"
+    assert capabilities["features"]["items"] is True
+    assert capabilities["features"]["workflow_plan_confirm"] is True
+    assert capabilities["limits"]["max_upload_bytes"] > 0
+    assert capabilities["limits"]["page_size_max"] == 100
+    assert capabilities["extension_contract"] == {
+        "preferred_interface": "rest_api",
+        "write_idempotency_required": True,
+        "workflow_required_for_bulk_or_agent_writes": True,
+    }
+    assert "database_url" not in capabilities
+    assert "upload_dir" not in capabilities
+    assert "backup_dir" not in capabilities
+
+
 def test_tag_delete_and_item_tag_status_filters() -> None:
     client = TestClient(create_app())
 

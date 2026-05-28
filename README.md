@@ -508,6 +508,7 @@ stash system info
 | POST | `/api/workflows/plans/{plan_id}/confirm` | 基于 plan 确认执行 |
 | GET | `/api/stats/overview` | 统计概览 |
 | GET | `/api/health` | 健康检查 |
+| GET | `/api/system/capabilities` | 扩展能力发现 |
 | GET | `/api/system/info` | 系统信息 |
 
 ---
@@ -520,6 +521,21 @@ stash system info
 - workflow 遵循 plan / confirm；plan 只预览不落库，confirm 基于已保存计划执行，失败时回滚本次业务写入。
 - 上传限制与 CLI 一致：单文件默认 50MB，图片 MIME 仅支持 JPEG、PNG、WebP、GIF，超限返回 `UPLOAD_TOO_LARGE`。
 - 恢复备份前后端会自动创建当前快照，但恢复动作仍会覆盖当前数据；生产使用前应先下载一份可离线保存的备份。
+- 扩展和自动化模块优先通过 REST API 接入，开发文档见 [docs/extensions/README.md](docs/extensions/README.md)。
+
+### 主干检查
+
+修改主干后建议至少运行：
+
+```powershell
+cd backend
+& ..\.venv\Scripts\python.exe -m pytest
+& ..\.venv\Scripts\python.exe -m alembic -c alembic.ini upgrade head
+cd ..\frontend
+npm.cmd run build
+```
+
+如果虚拟环境路径不同，使用当前环境中的 Python 执行同样命令。
 
 ---
 

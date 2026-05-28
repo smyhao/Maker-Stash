@@ -11,6 +11,8 @@ from app.models.item import Item
 from app.models.location import Location
 
 router = APIRouter(tags=["system"])
+APP_VERSION = "0.1.0"
+API_VERSION = "0.1"
 
 
 @router.get("/health")
@@ -25,7 +27,7 @@ def system_info(db: Session = Depends(get_db)) -> dict:
     return ok(
         {
             "name": settings.app_name,
-            "version": "0.1.0",
+            "version": APP_VERSION,
             "environment": settings.app_env,
             "database_url": settings.database_url,
             "upload_dir": str(settings.upload_dir),
@@ -41,5 +43,40 @@ def system_info(db: Session = Depends(get_db)) -> dict:
                 "locations": db.scalar(select(func.count()).select_from(Location)) or 0,
             },
             "latest_backup": latest_backup.backup_id if latest_backup else None,
+        }
+    )
+
+
+@router.get("/system/capabilities")
+def system_capabilities() -> dict:
+    settings = get_settings()
+    return ok(
+        {
+            "app": settings.app_name,
+            "version": APP_VERSION,
+            "api_version": API_VERSION,
+            "features": {
+                "items": True,
+                "categories": True,
+                "locations": True,
+                "attachments": True,
+                "containers": True,
+                "search": True,
+                "backups": True,
+                "tokens": True,
+                "idempotency": True,
+                "audit": True,
+                "tasks": True,
+                "workflow_plan_confirm": True,
+            },
+            "limits": {
+                "max_upload_bytes": settings.max_upload_bytes,
+                "page_size_max": 100,
+            },
+            "extension_contract": {
+                "preferred_interface": "rest_api",
+                "write_idempotency_required": True,
+                "workflow_required_for_bulk_or_agent_writes": True,
+            },
         }
     )

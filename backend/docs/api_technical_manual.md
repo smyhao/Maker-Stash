@@ -3,7 +3,7 @@
 ## 1. 架构概览
 
 ```
-请求 → FastAPI App → APIRouter(prefix="/api") → Route 函数 → Service → Repository → Database/Files
+请求 → FastAPI App → APIRouter(prefix="/api") → Route 函数 → Service → Database/Files
                          ↑
                    require_api_token (依赖注入)
 ```
@@ -16,7 +16,7 @@
 app/api/
 ├── router.py              统一注册所有子路由
 └── routes/
-    ├── health.py          健康检查、系统信息
+    ├── health.py          健康检查、系统信息、能力发现
     ├── categories.py      分类 CRUD
     ├── locations.py       位置 CRUD + 按位置查物品
     ├── items.py           物品 CRUD + 业务动作 + 备注
@@ -27,6 +27,7 @@ app/api/
     ├── backups.py         备份创建/列表/恢复/下载
     ├── tasks.py           轻量任务 API
     ├── workflows.py       plan / confirm 工作流
+    ├── tokens.py          API Token 管理
     └── stats.py           统计概览
 ```
 
@@ -60,7 +61,7 @@ python -m app.scripts.create_token --name web
 
 配置项（`.env`）：
 - `API_TOKEN_ENABLED` — 是否启用 Token 校验
-- `API_TOKEN_REQUIRE_ALL` — 为 false 时 `/api/health` 和 `/api/system/info` 免 Token
+- `API_TOKEN_REQUIRE_ALL` — 为 false 时 `/api/health` 和 `/api/system/info` 免 Token；`/api/system/capabilities` 仍按全局依赖校验，除非关闭 `API_TOKEN_ENABLED`
 
 ### 路由注册
 
@@ -230,12 +231,48 @@ class LocationTreeNode(LocationRead):
 |---|---|---|
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/system/info` | 系统信息（版本/数量/认证状态/最近备份） |
+| GET | `/api/system/capabilities` | 扩展能力发现（版本/功能开关/限制/扩展契约） |
 | GET | `/api/stats/overview` | 统计概览（物品/低库存/补货/分类分布/位置分布） |
 
 统计说明：
 
 - `category_counts` 会把子分类和孙分类物品汇总到父分类。
 - `location_counts` 不展开自动格位；收纳盒内格位物品会汇总到所属收纳盒。
+
+**GET /api/system/capabilities 响应字段：**
+
+```json
+{
+  "app": "workshop-stash",
+  "version": "0.1.0",
+  "api_version": "0.1",
+  "features": {
+    "items": true,
+    "categories": true,
+    "locations": true,
+    "attachments": true,
+    "containers": true,
+    "search": true,
+    "backups": true,
+    "tokens": true,
+    "idempotency": true,
+    "audit": true,
+    "tasks": true,
+    "workflow_plan_confirm": true
+  },
+  "limits": {
+    "max_upload_bytes": 52428800,
+    "page_size_max": 100
+  },
+  "extension_contract": {
+    "preferred_interface": "rest_api",
+    "write_idempotency_required": true,
+    "workflow_required_for_bulk_or_agent_writes": true
+  }
+}
+```
+
+Capabilities 面向扩展读取，不返回 `database_url`、`upload_dir`、`backup_dir` 等本地路径；管理诊断信息继续使用 `/api/system/info`。
 
 ### 4.2 物品 (items)
 
@@ -503,15 +540,16 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/items/{id_or_code}/images` | 上传图片（multipart，`is_cover` 表单字段） |
+| POST | `/api/items/{id_or_code}/images` | 上传图片（multipart，`is_cover` 查询参数） |
 | POST | `/api/items/{id_or_code}/attachments` | 上传附件（multipart） |
 | GET | `/api/items/{id_or_code}/attachments` | 附件列表 |
 | DELETE | `/api/attachments/{id}` | 删除附件并释放上传文件 |
 | GET | `/api/attachments/{id}/download` | 下载附件 |
+| GET | `/api/attachments/{id}/thumbnail` | 下载图片缩略图（JPEG） |
 
 **AttachmentRead：** `id, item_id, attachment_type, original_name, stored_name, file_path, thumbnail_path, mime_type, size_bytes, description, is_cover, is_deleted, created_at`
 
-上传约束：单文件默认 50MB；图片只支持 JPEG/PNG/WebP/GIF；`is_cover=true` 会把上传图片设置为物品封面。
+上传约束：单文件默认 50MB；图片只支持 JPEG/PNG/WebP/GIF；`/api/items/{id_or_code}/images?is_cover=true` 会把上传图片设置为物品封面。
 
 前端展示约定：
 
@@ -526,7 +564,31 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 - `DELETE /api/items/{id_or_code}?delete_attachments=true` 会归档物品，并释放该物品所有附件原文件和缩略图。
 - 普通归档不删除附件文件，只隐藏归档物品；需要释放磁盘空间时必须传 `delete_attachments=true`。
 
-### 4.11 备份 (backups)
+### 4.11 API Token (tokens)
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/tokens` | Token 列表 |
+| POST | `/api/tokens` | 创建 Token，明文 token 只在本次响应返回 |
+| PATCH | `/api/tokens/{id}` | 修改 Token 名称、启用状态或描述 |
+| DELETE | `/api/tokens/{id}` | 删除 Token |
+
+**TokenCreate：** `name`(必填), `description`
+
+**TokenUpdate：** `name`, `enabled`, `description`
+
+**TokenRead：** `id, name, enabled, description, last_used_at, created_at, updated_at, is_current`
+
+**TokenCreated：** TokenRead + `token`
+
+注意事项：
+
+- 数据库只保存 token 哈希，不保存明文。
+- `POST /api/tokens` 返回的 `token` 明文只出现一次，客户端必须立即保存。
+- `GET /api/tokens` 支持查询参数 `current_token`；传入明文 token 时会在匹配项上标记 `is_current=true`。
+- 禁用 token 使用 `PATCH /api/tokens/{id}`，请求体 `{"enabled": false}`。
+
+### 4.12 备份 (backups)
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -546,7 +608,7 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 - 恢复会覆盖当前数据库和上传文件目录；外部部署应先确认目标备份文件已下载或可重新获取。
 - 同一时间只允许一个备份或恢复任务执行，冲突返回 `BACKUP_IN_PROGRESS`。
 
-### 4.12 任务 (tasks)
+### 4.13 任务 (tasks)
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -573,7 +635,7 @@ quantity, unit, status, cover_attachment_id, need_restock, is_favorite, matched_
 }
 ```
 
-### 4.13 工作流 (workflows)
+### 4.14 工作流 (workflows)
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
@@ -614,6 +676,9 @@ confirm 规则：
 | `CATEGORY_NOT_FOUND` | 404 | 分类不存在 |
 | `LOCATION_NOT_FOUND` | 404 | 位置不存在 |
 | `TAG_NOT_FOUND` | 404 | 标签不存在 |
+| `TOKEN_NOT_FOUND` | 404 | Token 不存在 |
+| `ATTACHMENT_NOT_FOUND` | 404 | 附件不存在 |
+| `THUMBNAIL_NOT_FOUND` | 404 | 缩略图不存在 |
 | `BACKUP_NOT_FOUND` | 404 | 备份不存在 |
 | `TASK_NOT_FOUND` | 404 | 任务不存在 |
 | `PLAN_NOT_FOUND` | 404 | 工作流计划不存在 |
@@ -622,6 +687,17 @@ confirm 规则：
 | `DUPLICATE_CODE` | 400 | 编号重复 |
 | `LOCATION_CODE_EXISTS` | 400 | 位置编号已存在 |
 | `LOCATION_NOT_EMPTY` | 400 | 位置非空，不能删除 |
+| `LOCATION_NOT_CONTAINER` | 400 | 位置不是可视化收纳盒 |
+| `LOCATION_HAS_CHILDREN` | 400 | 位置已有子位置，不能转换为收纳盒 |
+| `LOCATION_ALREADY_CONTAINER` | 400 | 位置已经是可视化收纳盒 |
+| `CONTAINER_ASSIGNMENTS_REQUIRED` | 400 | 转换非空位置为收纳盒时缺少格位分配 |
+| `CONTAINER_RESIZE_OCCUPIED` | 400 | 缩小收纳盒布局会删除已占格位 |
+| `CONTAINER_CHILD_FORBIDDEN` | 400 | 收纳盒或格位下禁止创建普通子位置 |
+| `SLOT_OCCUPIED` | 400 | 目标格位已占用 |
+| `SLOT_NOT_FOUND` | 404 | 格位不存在 |
+| `SOURCE_NOT_IN_CONTAINER` | 400 | 交换源物品不在当前收纳盒内 |
+| `TARGET_SLOT_EMPTY` | 400 | 交换目标格位为空 |
+| `SAME_SLOT` | 400 | 不能交换同一格位 |
 | `NEGATIVE_QUANTITY_NOT_ALLOWED` | 400 | 库存不能变为负数 |
 | `ARCHIVED_ITEM_QUANTITY_FORBIDDEN` | 400 | 已归档物品不能变更库存 |
 | `ARCHIVED_ITEM_MOVE_FORBIDDEN` | 400 | 已归档物品不能移动位置 |
@@ -630,6 +706,7 @@ confirm 规则：
 | `PLAN_CONFIRM_TOKEN_INVALID` | 409 | plan 确认标识不匹配 |
 | `PLAN_HAS_FAILURES` | 409 | plan 含失败项，不能确认执行 |
 | `INVALID_TASK_STATE` | 409 | 任务状态迁移非法 |
+| `UNSUPPORTED_WORKFLOW_TYPE` | 400 | 不支持的工作流类型 |
 | `VALIDATION_ERROR` | 422 | 参数校验失败 |
 | `UPLOAD_FAILED` | 400 | 上传失败 |
 | `UPLOAD_TOO_LARGE` | 413 | 上传文件超过大小限制 |
@@ -646,4 +723,11 @@ confirm 规则：
 4. **Route** — 在 `app/api/routes/` 添加路由函数
 5. **Router** — 在 `app/api/router.py` 注册
 6. **Test** — 在 `tests/` 添加测试
-7. **Doc** — 更新本手册和 `backend/README.md`
+7. **Doc** — 更新本手册、`backend/README.md`，以及必要时的 `docs/extensions/` 文档
+8. **Capabilities** — 新增扩展可见能力或限制时，更新 `/api/system/capabilities`
+
+如果新增接口会被扩展长期依赖，必须同时确认：
+
+- 是否需要稳定错误码，并写入本手册和 `docs/extensions/API.md`。
+- 是否需要幂等和 `source/module/operator/request_id`。
+- 是否属于批量或 Agent 写入；如是，优先设计为 workflow。
