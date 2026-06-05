@@ -62,6 +62,7 @@ python -m app.scripts.create_token --name web
 配置项（`.env`）：
 - `API_TOKEN_ENABLED` — 是否启用 Token 校验
 - `API_TOKEN_REQUIRE_ALL` — 为 false 时 `/api/health` 和 `/api/system/info` 免 Token；`/api/system/capabilities` 仍按全局依赖校验，除非关闭 `API_TOKEN_ENABLED`
+- `WEB_UI_TOKEN_REQUIRED` — 是否要求 Web 前端请求也携带 Token；默认 false，CLI 和外部模块仍需使用 Bearer Token
 
 ### 路由注册
 
@@ -258,7 +259,8 @@ class LocationTreeNode(LocationRead):
     "idempotency": true,
     "audit": true,
     "tasks": true,
-    "workflow_plan_confirm": true
+    "workflow_plan_confirm": true,
+    "extension_ui": true
   },
   "limits": {
     "max_upload_bytes": 52428800,
@@ -274,7 +276,52 @@ class LocationTreeNode(LocationRead):
 
 Capabilities 面向扩展读取，不返回 `database_url`、`upload_dir`、`backup_dir` 等本地路径；管理诊断信息继续使用 `/api/system/info`。
 
-### 4.2 物品 (items)
+### 4.2 扩展 UI (extensions)
+
+扩展 UI 主干能力用于发现 `extensions/*/extension.json`、管理当前电脑启用状态、保存扩展本机配置，并向前端返回可渲染的 settings schema 与 action contributions。
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/extensions` | 列出已发现扩展、启用状态、配置状态和声明 |
+| PATCH | `/api/extensions/{extension_id}` | 启用或禁用扩展 |
+| GET | `/api/extensions/{extension_id}/settings` | 获取扩展配置 schema 和当前配置 |
+| PATCH | `/api/extensions/{extension_id}/settings` | 保存扩展配置 |
+| GET | `/api/extensions/contributions?place=...` | 获取当前已启用扩展在指定位置的 UI 入口 |
+| POST | `/api/extensions/{extension_id}/actions/{action}` | 执行扩展 action |
+
+`extension.json` 示例：
+
+```json
+{
+  "id": "label-printer",
+  "name": "标签打印",
+  "version": "0.1.0",
+  "api_version": "0.1",
+  "settings": {
+    "schema": {
+      "printer_name": {
+        "type": "string",
+        "label": "打印机名称",
+        "required": true
+      }
+    }
+  },
+  "contributions": [
+    {
+      "place": "item.detail.actions",
+      "type": "button",
+      "label": "打印标签",
+      "action": "print-item"
+    }
+  ]
+}
+```
+
+当前主干支持 `string`、`number`、`boolean`、`select`、`multiselect`、`secret`、`path` 配置类型。`secret` 字段返回前端时会脱敏为 `********`。
+
+当前 action endpoint 只完成扩展、启用状态和 action 声明校验；真实扩展执行器尚未接入时会返回 `EXTENSION_ACTION_NOT_IMPLEMENTED`。
+
+### 4.3 物品 (items)
 
 | 方法 | 路径 | 说明 |
 |---|---|---|

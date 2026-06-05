@@ -16,6 +16,8 @@ from app.models.api_token import ApiToken
 
 bearer = HTTPBearer(auto_error=False)
 TOKEN_HASH_PREFIX = "sha256$"
+WEB_UI_CLIENT_HEADER = "x-maker-stash-client"
+WEB_UI_CLIENT_VALUE = "web"
 
 
 def generate_token() -> str:
@@ -41,6 +43,8 @@ def require_api_token(
 ) -> None:
     settings = get_settings()
     if not settings.api_token_enabled:
+        return
+    if not settings.web_ui_token_required and request.headers.get(WEB_UI_CLIENT_HEADER) == WEB_UI_CLIENT_VALUE:
         return
     if not settings.api_token_require_all and request.url.path in {
         "/api/health",

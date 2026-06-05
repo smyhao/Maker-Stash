@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowDownToLine, ArrowUpFromLine, Heart, MapPinned, PackageCheck, Paperclip, Pencil, SlidersHorizontal, Trash2, Upload, X } from 'lucide-vue-next'
 
+import ExtensionActionSlot from '@/components/extensions/ExtensionActionSlot.vue'
 import StatusDot from '@/components/ui/StatusDot.vue'
 import { downloadAttachmentFile } from '@/api/items'
 import { useInventoryStore } from '@/stores/inventory'
@@ -193,6 +194,8 @@ async function downloadAttachment(attachment: Attachment) {
           </button>
         </div>
       </div>
+
+      <ExtensionActionSlot place="item.detail.actions" :context="{ item_id: item.id, item_code: item.code }" />
 
       <div class="mt-4 border-t border-line pt-3 2xl:mt-5 2xl:pt-4">
         <div class="mb-3 flex items-center justify-between">

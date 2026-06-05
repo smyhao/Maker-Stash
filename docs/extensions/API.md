@@ -103,6 +103,47 @@ GET /api/system/capabilities
 
 Capabilities 不返回 `database_url`、`upload_dir`、`backup_dir` 等本地路径。需要管理诊断信息时使用 `/api/system/info`，扩展不要依赖这些本地字段。
 
+## 扩展 UI 声明
+
+主干支持通过 `extensions/*/extension.json` 发现扩展 UI 声明。manifest 可以声明：
+
+- `settings.schema`：扩展配置表单字段。
+- `contributions`：扩展希望显示在主干界面的按钮、菜单或操作入口。
+
+扩展 UI 管理接口：
+
+```http
+GET /api/extensions
+PATCH /api/extensions/{extension_id}
+GET /api/extensions/{extension_id}/settings
+PATCH /api/extensions/{extension_id}/settings
+GET /api/extensions/contributions?place=item.detail.actions
+POST /api/extensions/{extension_id}/actions/{action}
+```
+
+当前支持的配置字段类型：
+
+```text
+string
+number
+boolean
+select
+multiselect
+secret
+path
+```
+
+当前建议优先使用的 contribution 位置：
+
+```text
+settings.extensions
+item.detail.actions
+item.list.bulk_actions
+tools.menu
+```
+
+注意：UI 声明只负责让主干显示配置和入口。扩展 action 的真实执行器需要后续单独接入；未接入时主干会返回 `EXTENSION_ACTION_NOT_IMPLEMENTED`。
+
 ## 错误处理与版本策略
 
 失败响应统一为：
@@ -128,6 +169,7 @@ Capabilities 不返回 `database_url`、`upload_dir`、`backup_dir` 等本地路
 - 上传与附件：`UPLOAD_TOO_LARGE`、`UPLOAD_FAILED`、`ATTACHMENT_NOT_FOUND`
 - 备份与任务：`BACKUP_IN_PROGRESS`
 - Workflow：`UNSUPPORTED_WORKFLOW_TYPE`、`PLAN_CONFIRM_TOKEN_INVALID`、`PLAN_HAS_FAILURES`
+- 扩展 UI：`EXTENSION_NOT_FOUND`、`EXTENSION_DISABLED`、`EXTENSION_ACTION_NOT_FOUND`、`EXTENSION_ACTION_NOT_IMPLEMENTED`
 
 兼容策略：
 

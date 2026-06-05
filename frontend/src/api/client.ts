@@ -11,6 +11,7 @@ export const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
+  config.headers['X-Maker-Stash-Client'] = 'web'
   const token = localStorage.getItem(API_TOKEN_KEY)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`

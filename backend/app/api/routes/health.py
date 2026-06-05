@@ -36,6 +36,7 @@ def system_info(db: Session = Depends(get_db)) -> dict:
                 "login_enabled": settings.auth_login_enabled,
                 "api_token_enabled": settings.api_token_enabled,
                 "api_token_require_all": settings.api_token_require_all,
+                "web_ui_token_required": settings.web_ui_token_required,
             },
             "counts": {
                 "items": db.scalar(select(func.count()).select_from(Item)) or 0,
@@ -68,6 +69,7 @@ def system_capabilities() -> dict:
                 "audit": True,
                 "tasks": True,
                 "workflow_plan_confirm": True,
+                "extension_ui": True,
             },
             "limits": {
                 "max_upload_bytes": settings.max_upload_bytes,

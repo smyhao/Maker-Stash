@@ -1,0 +1,1249 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maker Stash 扩展 UI 声明架构</title>
+  <style>
+    :root {
+      --bg: #f7f9fb;
+      --paper: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9e0e8;
+      --soft-line: #edf1f5;
+      --teal: #0f766e;
+      --teal-soft: #e6f4f1;
+      --blue: #2563eb;
+      --blue-soft: #e8f0ff;
+      --amber: #b7791f;
+      --amber-soft: #fff4df;
+      --red: #b42318;
+      --red-soft: #fff0ee;
+      --green: #15803d;
+      --green-soft: #e9f7ee;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      --radius: 8px;
+      --mono: "Cascadia Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: Inter, "Segoe UI", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: var(--sans);
+      line-height: 1.55;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 248px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+
+    aside {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      padding: 24px 18px;
+      background: #ffffff;
+      border-right: 1px solid var(--line);
+      overflow: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-weight: 760;
+      letter-spacing: 0;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--teal);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .nav-group {
+      margin: 22px 0;
+    }
+
+    .nav-title {
+      margin: 0 0 8px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 760;
+      text-transform: uppercase;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 8px 10px;
+      border-radius: 7px;
+      color: #344054;
+      font-size: 14px;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      background: var(--teal-soft);
+      color: #0b5e57;
+    }
+
+    main {
+      min-width: 0;
+      max-width: 1180px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 36px 34px 56px;
+    }
+
+    .crumb {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      max-width: 920px;
+      margin: 0;
+      font-size: clamp(32px, 4vw, 48px);
+      line-height: 1.08;
+      letter-spacing: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .lead {
+      max-width: 800px;
+      margin: 18px 0 0;
+      color: #475467;
+      font-size: 17px;
+    }
+
+    section {
+      margin-top: 34px;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: 23px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .panel {
+      min-width: 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .section-note {
+      max-width: 820px;
+      margin-bottom: 16px;
+      color: var(--muted);
+    }
+
+    .architecture {
+      padding: 20px;
+    }
+
+    .flow-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(132px, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .node {
+      position: relative;
+      min-width: 0;
+      min-height: 188px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .node::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -13px;
+      width: 13px;
+      height: 2px;
+      background: var(--teal);
+    }
+
+    .node:last-child::after {
+      display: none;
+    }
+
+    .node[data-tone="host"]::after {
+      background: var(--blue);
+    }
+
+    .node[data-tone="local"]::after {
+      background: var(--amber);
+    }
+
+    .node-kicker {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .node[data-tone="host"] .node-kicker {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+
+    .node[data-tone="local"] .node-kicker {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .node-title {
+      margin-bottom: 8px;
+      font-weight: 760;
+    }
+
+    .node-copy {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .rule {
+      width: 32px;
+      height: 2px;
+      background: var(--teal);
+    }
+
+    .rule.blue {
+      background: var(--blue);
+    }
+
+    .rule.amber {
+      background: var(--amber);
+      border-top: 2px dashed var(--amber);
+      height: 0;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      min-width: 0;
+      padding: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    pre {
+      max-width: 100%;
+      margin: 14px 0 0;
+      padding: 14px;
+      overflow: auto;
+      background: #0f172a;
+      color: #e5eef8;
+      border-radius: 7px;
+      font-family: var(--mono);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    code {
+      font-family: var(--mono);
+    }
+
+    .code-light {
+      background: #f8fafc;
+      color: #344054;
+      border: 1px solid var(--soft-line);
+    }
+
+    .schema-demo {
+      display: grid;
+      grid-template-columns: 330px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .settings-form {
+      min-width: 0;
+      padding: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .form-row {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      color: #344054;
+      font-size: 13px;
+      font-weight: 680;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 38px;
+      padding: 7px 10px;
+      border: 1px solid #cfd7e2;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 14px;
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 0;
+      border-top: 1px solid var(--soft-line);
+    }
+
+    .switch {
+      position: relative;
+      width: 42px;
+      height: 24px;
+      flex: 0 0 auto;
+    }
+
+    .switch input {
+      position: absolute;
+      opacity: 0;
+      inset: 0;
+    }
+
+    .slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #cbd5e1;
+      cursor: pointer;
+    }
+
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      top: 3px;
+      left: 3px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+      transition: transform 140ms ease;
+    }
+
+    .switch input:checked + .slider {
+      background: var(--teal);
+    }
+
+    .switch input:checked + .slider::before {
+      transform: translateX(18px);
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 7px 12px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: var(--teal);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .button.secondary {
+      background: #fff;
+      border-color: var(--line);
+      color: #344054;
+    }
+
+    .extension-table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .extension-table th,
+    .extension-table td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--soft-line);
+      text-align: left;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    .extension-table th {
+      color: #475467;
+      background: #f8fafc;
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 24px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 760;
+    }
+
+    .status.off {
+      background: #f1f5f9;
+      color: #475467;
+    }
+
+    .status.warn {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .surface-demo {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      min-height: 360px;
+      overflow: hidden;
+    }
+
+    .settings-nav {
+      padding: 18px;
+      border-right: 1px solid var(--line);
+      background: #fbfcfe;
+    }
+
+    .settings-nav div {
+      padding: 9px 10px;
+      border-radius: 7px;
+      color: #475467;
+      font-size: 14px;
+    }
+
+    .settings-nav .selected {
+      background: var(--teal-soft);
+      color: var(--teal);
+      font-weight: 720;
+    }
+
+    .surface-main {
+      min-width: 0;
+      padding: 20px;
+    }
+
+    .slot {
+      min-height: 88px;
+      padding: 14px;
+      border: 1px dashed #9fb4c9;
+      border-radius: var(--radius);
+      background: #f8fafc;
+    }
+
+    .slot-title {
+      margin-bottom: 10px;
+      color: #475467;
+      font-size: 13px;
+      font-weight: 720;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .action-btn {
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: #fff;
+      color: #344054;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .action-btn:hover {
+      border-color: var(--teal);
+      color: var(--teal);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .step {
+      position: relative;
+      padding: 38px 10px 0;
+    }
+
+    .step::before {
+      content: "";
+      position: absolute;
+      top: 17px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--line);
+    }
+
+    .step:first-child::before {
+      left: 50%;
+    }
+
+    .step:last-child::before {
+      right: 50%;
+    }
+
+    .dot {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #fff;
+      font-weight: 800;
+      z-index: 1;
+    }
+
+    .step:nth-child(4) .dot,
+    .step:nth-child(5) .dot {
+      background: var(--blue);
+    }
+
+    .step:nth-child(6) .dot {
+      background: var(--amber);
+    }
+
+    .step-title {
+      font-size: 13px;
+      font-weight: 760;
+      margin-bottom: 5px;
+    }
+
+    .step-copy {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .callout {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      padding: 16px;
+      border: 1px solid #b8d7ff;
+      border-radius: var(--radius);
+      background: #f4f9ff;
+    }
+
+    .callout-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .check-item {
+      display: grid;
+      grid-template-columns: 26px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .check {
+      width: 20px;
+      height: 20px;
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    .danger .check {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 1080px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      aside {
+        position: static;
+        height: auto;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .flow-grid,
+      .timeline {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .node::after,
+      .step::before {
+        display: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      main {
+        padding: 24px 16px 40px;
+      }
+
+      h1 {
+        font-size: 30px;
+        line-height: 1.12;
+      }
+
+      .split,
+      .schema-demo,
+      .surface-demo {
+        grid-template-columns: 1fr;
+      }
+
+      .settings-nav {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .flow-grid,
+      .timeline {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <a class="brand" href="#top" aria-label="回到顶部">
+        <span class="brand-mark">MS</span>
+        <span>Maker Stash 扩展 UI</span>
+      </a>
+
+      <nav aria-label="页面导航">
+        <div class="nav-group">
+          <p class="nav-title">架构</p>
+          <a class="nav-link active" href="#model">整体模型</a>
+          <a class="nav-link" href="#manifest">Manifest</a>
+          <a class="nav-link" href="#settings">Settings Schema</a>
+          <a class="nav-link" href="#contributions">Action Contributions</a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-title">运行</p>
+          <a class="nav-link" href="#renderer">主干通用渲染器</a>
+          <a class="nav-link" href="#flow">数据流</a>
+          <a class="nav-link" href="#boundaries">边界</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main id="top">
+      <div class="crumb">
+        <span>docs</span>
+        <span>/</span>
+        <span>extensions</span>
+        <span>/</span>
+        <strong>extension-ui-architecture</strong>
+      </div>
+
+      <header>
+        <h1>扩展声明 UI：让扩展自己定义入口和配置</h1>
+        <p class="lead">
+          这套模型把“扩展要显示什么”和“主干如何渲染”分开。扩展提供 manifest、settings schema 和 action contributions；主干只维护稳定协议、配置保存、通用渲染器和 action 转发。
+        </p>
+      </header>
+
+      <section id="model">
+        <h2>整体模型</h2>
+        <p class="section-note">
+          扩展声明能力，主干解释声明。这样新增扩展时通常只改扩展目录，不需要每次修改主干前端页面。
+        </p>
+        <div class="panel architecture">
+          <div class="flow-grid">
+            <article class="node">
+              <span class="node-kicker">扩展侧</span>
+              <div class="node-title">1. Extension Manifest</div>
+              <p class="node-copy">描述扩展身份、版本、配置 schema、入口和可贡献的 UI action。</p>
+            </article>
+            <article class="node">
+              <span class="node-kicker">扩展侧</span>
+              <div class="node-title">2. Settings Schema</div>
+              <p class="node-copy">声明配置字段类型、默认值、必填、选项和校验规则。</p>
+            </article>
+            <article class="node">
+              <span class="node-kicker">扩展侧</span>
+              <div class="node-title">3. Action Contributions</div>
+              <p class="node-copy">声明按钮、菜单、批量操作等入口应该出现在哪里。</p>
+            </article>
+            <article class="node" data-tone="host">
+              <span class="node-kicker">主干侧</span>
+              <div class="node-title">4. 通用渲染器</div>
+              <p class="node-copy">读取声明并渲染设置表单、操作按钮和扩展入口。</p>
+            </article>
+            <article class="node" data-tone="host">
+              <span class="node-kicker">主干侧</span>
+              <div class="node-title">5. Extension API</div>
+              <p class="node-copy">负责扩展发现、启停、配置保存、action 转发和幂等处理。</p>
+            </article>
+            <article class="node" data-tone="local">
+              <span class="node-kicker">本机侧</span>
+              <div class="node-title">6. Local Config</div>
+              <p class="node-copy">保存当前电脑启用了哪些扩展，以及每个扩展的本地配置。</p>
+            </article>
+          </div>
+          <div class="legend">
+            <span><i class="rule"></i> 扩展声明</span>
+            <span><i class="rule blue"></i> 主干运行时</span>
+            <span><i class="rule amber"></i> 本机状态</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="manifest">
+        <h2>Extension Manifest</h2>
+        <p class="section-note">
+          manifest 是扩展的公开说明书。它应该进 GitHub，但不应该包含真实 token、本机绝对路径、数据库路径或用户私密配置。
+        </p>
+        <div class="split">
+          <div class="card">
+            <h3>manifest 负责声明</h3>
+            <p>主干通过它知道扩展是谁、是否兼容当前 API、需要哪些配置，以及要贡献哪些界面入口。</p>
+            <pre class="code-light"><code>extensions/
+  label-printer/
+    extension.json
+    README.md
+    src/
+    config.example.json</code></pre>
+          </div>
+          <div class="card">
+            <h3>示例 extension.json</h3>
+            <pre><code>{
+  "id": "label-printer",
+  "name": "标签打印",
+  "version": "0.1.0",
+  "api_version": "0.1",
+  "settings": {
+    "schema": {
+      "printer_name": {
+        "type": "string",
+        "label": "打印机名称",
+        "required": true
+      }
+    }
+  },
+  "contributions": [
+    {
+      "place": "item.detail.actions",
+      "type": "button",
+      "label": "打印标签",
+      "action": "print-item"
+    }
+  ]
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="settings">
+        <h2>Settings Schema</h2>
+        <p class="section-note">
+          schema 把扩展配置变成可渲染的数据结构。主干前端不需要知道“标签打印”怎么写页面，只需要按字段类型生成通用表单。
+        </p>
+        <div class="schema-demo">
+          <form class="settings-form" aria-label="设置表单示例">
+            <h3>渲染结果</h3>
+            <div class="form-row">
+              <label for="printer-name">打印机名称</label>
+              <input id="printer-name" value="Brother QL-800" />
+            </div>
+            <div class="form-row">
+              <label for="paper-size">标签尺寸</label>
+              <select id="paper-size">
+                <option>40 x 30 mm</option>
+                <option>60 x 40 mm</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="copies">默认打印份数</label>
+              <input id="copies" type="number" min="1" max="20" value="1" />
+            </div>
+            <div class="toggle-row">
+              <div>
+                <label for="auto-print">新增物品后自动打印</label>
+                <p class="muted">boolean 字段渲染为开关。</p>
+              </div>
+              <label class="switch">
+                <input id="auto-print" type="checkbox" />
+                <span class="slider"></span>
+              </label>
+            </div>
+            <button class="button" type="button">保存设置</button>
+          </form>
+          <div class="card">
+            <h3>对应 schema</h3>
+            <pre><code>{
+  "printer_name": {
+    "type": "string",
+    "label": "打印机名称",
+    "required": true
+  },
+  "paper_size": {
+    "type": "select",
+    "label": "标签尺寸",
+    "default": "40x30",
+    "options": [
+      { "label": "40 x 30 mm", "value": "40x30" },
+      { "label": "60 x 40 mm", "value": "60x40" }
+    ]
+  },
+  "copies": {
+    "type": "number",
+    "label": "默认打印份数",
+    "default": 1,
+    "min": 1,
+    "max": 20
+  },
+  "auto_print_on_create": {
+    "type": "boolean",
+    "label": "新增物品后自动打印",
+    "default": false
+  }
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="contributions">
+        <h2>Action Contributions</h2>
+        <p class="section-note">
+          contribution 描述“入口出现在哪里”和“点击后触发哪个 action”。主干页面只预留 slot，不写死具体扩展。
+        </p>
+        <div class="split">
+          <div class="card">
+            <h3>推荐先开放少量位置</h3>
+            <pre class="code-light"><code>settings.extensions
+item.detail.actions
+item.list.bulk_actions
+tools.menu</code></pre>
+            <p style="margin-top: 12px;">位置越多，主干前端维护成本越高。第一版应只开放真实需要的位置。</p>
+          </div>
+          <div class="card">
+            <h3>按钮声明示例</h3>
+            <pre><code>{
+  "place": "item.detail.actions",
+  "type": "button",
+  "label": "打印标签",
+  "action": "print-item",
+  "requires": ["items.read"]
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="renderer">
+        <h2>主干通用渲染器</h2>
+        <p class="section-note">
+          下面的演示模拟“当前电脑启用了哪些扩展”。切换开关后，设置页和物品详情页的扩展入口会同步变化。
+        </p>
+        <div class="card">
+          <table class="extension-table" aria-label="扩展开关演示">
+            <thead>
+              <tr>
+                <th>扩展</th>
+                <th>状态</th>
+                <th>贡献入口</th>
+                <th>本机启用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>label-printer</strong><br><span class="muted">标签打印</span></td>
+                <td><span class="status" id="status-label-printer">已启用</span></td>
+                <td>设置页、物品详情操作区</td>
+                <td>
+                  <label class="switch">
+                    <input data-extension-toggle="label-printer" type="checkbox" checked />
+                    <span class="slider"></span>
+                  </label>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>scanner-importer</strong><br><span class="muted">扫码入库</span></td>
+                <td><span class="status off" id="status-scanner-importer">未启用</span></td>
+                <td>工具菜单、批量 workflow</td>
+                <td>
+                  <label class="switch">
+                    <input data-extension-toggle="scanner-importer" type="checkbox" />
+                    <span class="slider"></span>
+                  </label>
+                </td>
+              </tr>
+              <tr>
+                <td><strong>bulk-importer</strong><br><span class="muted">批量导入</span></td>
+                <td><span class="status warn" id="status-bulk-importer">待配置</span></td>
+                <td>工具菜单、列表批量操作</td>
+                <td>
+                  <label class="switch">
+                    <input data-extension-toggle="bulk-importer" type="checkbox" checked />
+                    <span class="slider"></span>
+                  </label>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="panel surface-demo" style="margin-top: 18px;">
+          <div class="settings-nav">
+            <div>概览</div>
+            <div>物品</div>
+            <div class="selected">扩展</div>
+            <div>备份</div>
+            <div>令牌</div>
+          </div>
+          <div class="surface-main">
+            <h3>设置页：settings.extensions</h3>
+            <div class="slot" id="settings-slot">
+              <div class="slot-title">启用扩展的配置表单会出现在这里</div>
+              <div class="actions" id="settings-actions"></div>
+            </div>
+
+            <h3 style="margin-top: 22px;">物品详情页：item.detail.actions</h3>
+            <div class="slot" id="detail-slot">
+              <div class="slot-title">启用扩展的操作按钮会出现在这里</div>
+              <div class="actions" id="detail-actions"></div>
+            </div>
+
+            <h3 style="margin-top: 22px;">工具菜单：tools.menu</h3>
+            <div class="slot" id="tools-slot">
+              <div class="slot-title">启用扩展的工具入口会出现在这里</div>
+              <div class="actions" id="tools-actions"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="flow">
+        <h2>典型数据流</h2>
+        <p class="section-note">
+          用户看到的按钮不是硬编码页面的一部分，而是扩展 manifest 被主干解析后渲染出来的结果。
+        </p>
+        <div class="timeline">
+          <div class="step">
+            <span class="dot">1</span>
+            <div class="step-title">扫描扩展</div>
+            <p class="step-copy">后端读取 extensions/*/extension.json。</p>
+          </div>
+          <div class="step">
+            <span class="dot">2</span>
+            <div class="step-title">读取本机启用状态</div>
+            <p class="step-copy">读取 extensions.local.json 或本地配置表。</p>
+          </div>
+          <div class="step">
+            <span class="dot">3</span>
+            <div class="step-title">返回声明</div>
+            <p class="step-copy">GET /api/extensions/contributions。</p>
+          </div>
+          <div class="step">
+            <span class="dot">4</span>
+            <div class="step-title">渲染入口</div>
+            <p class="step-copy">ExtensionActionSlot 根据 place 渲染按钮。</p>
+          </div>
+          <div class="step">
+            <span class="dot">5</span>
+            <div class="step-title">执行 action</div>
+            <p class="step-copy">POST /api/extensions/{id}/actions/{action}。</p>
+          </div>
+          <div class="step">
+            <span class="dot">6</span>
+            <div class="step-title">返回结果</div>
+            <p class="step-copy">扩展通过 REST API 查询或写入主干数据。</p>
+          </div>
+        </div>
+
+        <div class="split" style="margin-top: 18px;">
+          <div class="card">
+            <h3>本机启用配置</h3>
+            <pre class="code-light" id="local-config"><code></code></pre>
+          </div>
+          <div class="card">
+            <h3>Action 调用形态</h3>
+            <pre><code>POST /api/extensions/label-printer/actions/print-item
+
+{
+  "context": {
+    "item_id": 123
+  },
+  "request_id": "label-printer-print-item-123-001",
+  "source": "extension",
+  "module": "label-printer",
+  "operator": "workshop-pc"
+}</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="boundaries">
+        <h2>边界与落地顺序</h2>
+        <div class="split">
+          <div class="checklist">
+            <h3>允许</h3>
+            <div class="check-item">
+              <span class="check">✓</span>
+              <p>扩展声明配置项、按钮、菜单和批量操作入口。</p>
+            </div>
+            <div class="check-item">
+              <span class="check">✓</span>
+              <p>扩展 action 通过主干 API 执行业务逻辑。</p>
+            </div>
+            <div class="check-item">
+              <span class="check">✓</span>
+              <p>主干保存当前电脑的启用状态和本地配置。</p>
+            </div>
+            <div class="check-item">
+              <span class="check">✓</span>
+              <p>扩展启动时调用 capabilities 判断主干能力。</p>
+            </div>
+          </div>
+          <div class="checklist">
+            <h3>禁止</h3>
+            <div class="check-item danger">
+              <span class="check">×</span>
+              <p>扩展直接导入 Vue 组件、Pinia store 或前端内部类型。</p>
+            </div>
+            <div class="check-item danger">
+              <span class="check">×</span>
+              <p>扩展直连 SQLite 或绕过 API 修改上传目录。</p>
+            </div>
+            <div class="check-item danger">
+              <span class="check">×</span>
+              <p>manifest 中保存真实 token、密码或本机私密路径。</p>
+            </div>
+            <div class="check-item danger">
+              <span class="check">×</span>
+              <p>为了单个扩展改出复杂平台能力或插件市场。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="callout" style="margin-top: 18px;">
+          <div class="callout-mark">1</div>
+          <div>
+            <h3>最小落地版本</h3>
+            <p class="muted">
+              第一版只需要 extension.json、扩展开关、本地 settings 保存、settings schema 渲染、item.detail.actions 插槽和 POST action。等第一个真实扩展跑通后，再增加工具菜单、批量操作、健康检查和复杂独立页面。
+            </p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const extensions = {
+      "label-printer": {
+        label: "标签打印设置",
+        status: "已启用",
+        settings: true,
+        detailAction: "打印标签",
+        toolAction: null,
+        configured: true
+      },
+      "scanner-importer": {
+        label: "扫码入库设置",
+        status: "已启用",
+        settings: true,
+        detailAction: null,
+        toolAction: "扫码入库",
+        configured: true
+      },
+      "bulk-importer": {
+        label: "批量导入设置",
+        status: "待配置",
+        settings: true,
+        detailAction: null,
+        toolAction: "批量导入",
+        configured: false
+      }
+    };
+
+    const enabled = new Set(["label-printer", "bulk-importer"]);
+
+    function actionButton(text) {
+      const button = document.createElement("button");
+      button.className = "action-btn";
+      button.type = "button";
+      button.textContent = text;
+      return button;
+    }
+
+    function render() {
+      const settingsActions = document.getElementById("settings-actions");
+      const detailActions = document.getElementById("detail-actions");
+      const toolsActions = document.getElementById("tools-actions");
+      const config = document.getElementById("local-config").querySelector("code");
+
+      settingsActions.innerHTML = "";
+      detailActions.innerHTML = "";
+      toolsActions.innerHTML = "";
+
+      Object.entries(extensions).forEach(([id, ext]) => {
+        const status = document.getElementById(`status-${id}`);
+        const isEnabled = enabled.has(id);
+
+        if (isEnabled) {
+          status.textContent = ext.configured ? "已启用" : "待配置";
+          status.className = ext.configured ? "status" : "status warn";
+
+          if (ext.settings) settingsActions.appendChild(actionButton(ext.label));
+          if (ext.detailAction) detailActions.appendChild(actionButton(ext.detailAction));
+          if (ext.toolAction) toolsActions.appendChild(actionButton(ext.toolAction));
+        } else {
+          status.textContent = "未启用";
+          status.className = "status off";
+        }
+      });
+
+      if (!settingsActions.children.length) settingsActions.appendChild(actionButton("暂无启用扩展"));
+      if (!detailActions.children.length) detailActions.appendChild(actionButton("暂无扩展操作"));
+      if (!toolsActions.children.length) toolsActions.appendChild(actionButton("暂无扩展工具"));
+
+      config.textContent = JSON.stringify({
+        enabled: Array.from(enabled),
+        api_base_url: "http://127.0.0.1:8000/api",
+        operator: "workshop-pc"
+      }, null, 2);
+    }
+
+    document.querySelectorAll("[data-extension-toggle]").forEach((input) => {
+      input.addEventListener("change", (event) => {
+        const id = event.currentTarget.dataset.extensionToggle;
+        if (event.currentTarget.checked) enabled.add(id);
+        else enabled.delete(id);
+        render();
+      });
+    });
+
+    render();
+  </script>
+</body>
+</html>

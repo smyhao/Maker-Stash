@@ -190,3 +190,45 @@ export interface StatsOverview {
     count: number
   }>
 }
+
+export type ExtensionSettingType = 'string' | 'number' | 'boolean' | 'select' | 'multiselect' | 'secret' | 'path'
+
+export interface ExtensionSettingOption {
+  label: string
+  value: string
+}
+
+export interface ExtensionSettingField {
+  type: ExtensionSettingType
+  label: string
+  required?: boolean
+  default?: unknown
+  options?: ExtensionSettingOption[]
+  min?: number | null
+  max?: number | null
+}
+
+export interface ExtensionContribution {
+  extension_id: string
+  extension_name: string
+  place: string
+  type: string
+  label: string
+  action: string
+  requires?: string[]
+}
+
+export interface ExtensionManifest {
+  id: string
+  name: string
+  description?: string | null
+  version: string
+  api_version: string
+  enabled: boolean
+  configured: boolean
+  settings: {
+    schema: Record<string, ExtensionSettingField>
+  }
+  settings_values: Record<string, unknown>
+  contributions: Array<Omit<ExtensionContribution, 'extension_id' | 'extension_name'>>
+}

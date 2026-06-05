@@ -129,4 +129,4 @@ python stop.py --ports 8000 5173
 - 根目录已有 `.venv`
 - `backend` 依赖已安装
 - `frontend/node_modules` 已存在
-- 后端 API Token 仍需在前端“设置”里填写
+- Web 前端默认免填 API Token；CLI 和外部模块接入仍需单独配置 Token

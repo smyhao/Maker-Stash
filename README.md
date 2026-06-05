@@ -98,7 +98,8 @@ ESP32-S3：    型号=ESP32-S3  Flash=4MB  通信=Wi-Fi+BLE
 
 ### API Token 认证
 
-- 所有 API 通过 Bearer Token 认证
+- 外部模块、CLI 和自动化接入通过 Bearer Token 认证
+- Web 前端默认可免填 Token；如需强制前端也带 Token，设置 `WEB_UI_TOKEN_REQUIRED=true`
 - 支持多个 Token（CLI、AI 助手、扫码模块等各自独立）
 - Token 只存哈希，不存明文
 
@@ -515,7 +516,7 @@ stash system info
 
 ### API 注意事项
 
-- 所有业务 API 默认需要 `Authorization: Bearer <token>`；首次 Token 通过 `python -m app.scripts.create_token --name <name>` 创建，明文只显示一次。
+- 外部模块和 CLI 调用业务 API 默认需要 `Authorization: Bearer <token>`；首次 Token 通过 `python -m app.scripts.create_token --name <name>` 创建，明文只显示一次。Web 前端默认免填 Token；如需恢复每台设备都必须配置 Token，设置 `WEB_UI_TOKEN_REQUIRED=true`。
 - 库存不允许为负；归档物品不能再变更库存或位置，通用 PATCH 同样受此限制。
 - 关键写接口支持 `request_id` / `Idempotency-Key` 幂等，并记录轻量审计。
 - workflow 遵循 plan / confirm；plan 只预览不落库，confirm 基于已保存计划执行，失败时回滚本次业务写入。

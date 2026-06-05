@@ -895,6 +895,48 @@ def test_system_info_and_validation_error_shape() -> None:
     assert body["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_web_ui_client_can_skip_token_without_disabling_api_tokens(monkeypatch) -> None:
+    monkeypatch.setenv("API_TOKEN_ENABLED", "true")
+    monkeypatch.setenv("WEB_UI_TOKEN_REQUIRED", "false")
+    get_settings.cache_clear()
+    try:
+        client = TestClient(create_app())
+
+        missing_token = client.get("/api/items")
+        assert missing_token.status_code == 401
+        assert missing_token.json()["error"]["code"] == "INVALID_TOKEN"
+
+        web_response = client.get("/api/items", headers={"X-Maker-Stash-Client": "web"})
+        assert web_response.status_code == 200
+
+        created = client.post(
+            "/api/tokens",
+            json={"name": "cli-test"},
+            headers={"X-Maker-Stash-Client": "web"},
+        )
+        assert created.status_code == 200
+        plaintext = created.json()["data"]["token"]
+
+        token_response = client.get("/api/items", headers={"Authorization": f"Bearer {plaintext}"})
+        assert token_response.status_code == 200
+    finally:
+        get_settings.cache_clear()
+
+
+def test_web_ui_token_required_keeps_web_client_protected(monkeypatch) -> None:
+    monkeypatch.setenv("API_TOKEN_ENABLED", "true")
+    monkeypatch.setenv("WEB_UI_TOKEN_REQUIRED", "true")
+    get_settings.cache_clear()
+    try:
+        client = TestClient(create_app())
+
+        response = client.get("/api/items", headers={"X-Maker-Stash-Client": "web"})
+        assert response.status_code == 401
+        assert response.json()["error"]["code"] == "INVALID_TOKEN"
+    finally:
+        get_settings.cache_clear()
+
+
 def test_system_capabilities_are_extension_safe() -> None:
     client = TestClient(create_app())
 
@@ -917,6 +959,85 @@ def test_system_capabilities_are_extension_safe() -> None:
     assert "database_url" not in capabilities
     assert "upload_dir" not in capabilities
     assert "backup_dir" not in capabilities
+
+
+def test_extension_ui_manifest_settings_and_contributions(tmp_path: Path) -> None:
+    settings = get_settings()
+    old_extensions_dir = settings.extensions_dir
+    old_extensions_config_path = settings.extensions_config_path
+    settings.extensions_dir = tmp_path / "extensions"
+    settings.extensions_config_path = tmp_path / "extensions.local.json"
+    extension_dir = settings.extensions_dir / "label-printer"
+    extension_dir.mkdir(parents=True)
+    (extension_dir / "extension.json").write_text(
+        json.dumps(
+            {
+                "id": "label-printer",
+                "name": "标签打印",
+                "version": "0.1.0",
+                "api_version": "0.1",
+                "settings": {
+                    "schema": {
+                        "printer_name": {"type": "string", "label": "打印机名称", "required": True},
+                        "copies": {"type": "number", "label": "默认份数", "default": 1, "min": 1, "max": 20},
+                        "token": {"type": "secret", "label": "Token"},
+                    }
+                },
+                "contributions": [
+                    {
+                        "place": "item.detail.actions",
+                        "type": "button",
+                        "label": "打印标签",
+                        "action": "print-item",
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        client = TestClient(create_app())
+
+        list_response = client.get("/api/extensions")
+        assert list_response.status_code == 200
+        extension = list_response.json()["data"]["extensions"][0]
+        assert extension["id"] == "label-printer"
+        assert extension["enabled"] is False
+        assert extension["configured"] is False
+
+        disabled_contributions = client.get("/api/extensions/contributions", params={"place": "item.detail.actions"})
+        assert disabled_contributions.status_code == 200
+        assert disabled_contributions.json()["data"]["contributions"] == []
+
+        enable_response = client.patch("/api/extensions/label-printer", json={"enabled": True})
+        assert enable_response.status_code == 200
+        assert enable_response.json()["data"]["enabled"] is True
+
+        settings_response = client.patch(
+            "/api/extensions/label-printer/settings",
+            json={"values": {"printer_name": "Brother QL-800", "copies": 2, "token": "secret-value"}},
+        )
+        assert settings_response.status_code == 200
+        assert settings_response.json()["data"]["configured"] is True
+        assert settings_response.json()["data"]["values"]["token"] == "********"
+
+        contributions_response = client.get("/api/extensions/contributions", params={"place": "item.detail.actions"})
+        assert contributions_response.status_code == 200
+        contribution = contributions_response.json()["data"]["contributions"][0]
+        assert contribution["extension_id"] == "label-printer"
+        assert contribution["action"] == "print-item"
+
+        action_response = client.post(
+            "/api/extensions/label-printer/actions/print-item",
+            json={"context": {"item_id": 1}, "request_id": "test-action-1"},
+        )
+        assert action_response.status_code == 501
+        assert action_response.json()["error"]["code"] == "EXTENSION_ACTION_NOT_IMPLEMENTED"
+    finally:
+        settings.extensions_dir = old_extensions_dir
+        settings.extensions_config_path = old_extensions_config_path
 
 
 def test_tag_delete_and_item_tag_status_filters() -> None:

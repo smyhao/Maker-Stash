@@ -3,6 +3,7 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .pytest-tmp/
+.codex-runtime/
 backend/.pytest-tmp/
 backend/.pytest-work/
 backend/.pytest-runtime/
@@ -15,6 +16,7 @@ venv/
 .env
 *.env.local
 start.toml
+extensions.local.json
 
 backend/data/
 
