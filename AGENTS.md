@@ -13,4 +13,4 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 
 ## 扩展开发
 
-- 开发扩展或扩展相关主干能力时，遵守 `docs/extensions/RULE.md`。
+- 开发扩展或扩展相关主干能力时，遵守 `docs/extensions/RULE.md` 和 `docs/extensions/DEVELOPMENT.md`。

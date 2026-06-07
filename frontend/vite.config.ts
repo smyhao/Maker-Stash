@@ -10,6 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      'lucide-vue-next': fileURLToPath(new URL('./node_modules/lucide-vue-next/dist/esm/lucide-vue-next.js', import.meta.url)),
+      'xlsx': fileURLToPath(new URL('./node_modules/xlsx/xlsx.mjs', import.meta.url)),
+      'vue': fileURLToPath(new URL('./node_modules/vue/dist/vue.runtime.esm-bundler.js', import.meta.url)),
     },
   },
   server: {

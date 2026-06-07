@@ -5,7 +5,6 @@ import { AlertTriangle, Check, Copy, Plus, Trash2 } from 'lucide-vue-next'
 
 import { getApiConfig, setApiConfig } from '@/api/client'
 import { createToken, deleteToken, fetchTokens, updateToken } from '@/api/tokens'
-import ExtensionSettingsPanel from '@/components/extensions/ExtensionSettingsPanel.vue'
 import type { ApiTokenRead } from '@/api/tokens'
 
 const emit = defineEmits<{
@@ -26,12 +25,11 @@ const copied = ref(false)
 const loading = ref(false)
 const busyId = ref<number | null>(null)
 const message = ref<{ type: 'error' | 'success'; text: string } | null>(null)
-const activeTab = ref<'connection' | 'tokens' | 'extensions'>('connection')
+const activeTab = ref<'connection' | 'tokens'>('connection')
 
 const tabs = [
   { key: 'connection', label: '连接' },
   { key: 'tokens', label: 'Token' },
-  { key: 'extensions', label: '扩展' },
 ] as const
 
 function setMessage(type: 'error' | 'success', text: string) {
@@ -197,8 +195,6 @@ loadConfig()
         </button>
       </div>
     </div>
-
-    <ExtensionSettingsPanel v-else-if="activeTab === 'extensions'" />
 
     <section v-else class="rounded-[8px] border border-line bg-white p-5 shadow-sm">
       <div v-if="createdTokenValue" class="mb-4 rounded-[8px] border border-amber-200 bg-amber-50 p-4">

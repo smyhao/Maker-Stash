@@ -13,10 +13,14 @@ declare module 'lucide-vue-next' {
   export const ChevronDown: LucideIcon
   export const ChevronRight: LucideIcon
   export const Check: LucideIcon
+  export const CheckCircle2: LucideIcon
   export const Container: LucideIcon
   export const Copy: LucideIcon
   export const Cpu: LucideIcon
   export const Cuboid: LucideIcon
+  export const Download: LucideIcon
+  export const FileDown: LucideIcon
+  export const FileSpreadsheet: LucideIcon
   export const Grid2X2: LucideIcon
   export const Hammer: LucideIcon
   export const Home: LucideIcon
@@ -30,13 +34,16 @@ declare module 'lucide-vue-next' {
   export const Paperclip: LucideIcon
   export const Pencil: LucideIcon
   export const Plus: LucideIcon
+  export const RefreshCw: LucideIcon
   export const ScanLine: LucideIcon
+  export const Search: LucideIcon
   export const ScrollText: LucideIcon
   export const Settings: LucideIcon
   export const Shapes: LucideIcon
   export const SlidersHorizontal: LucideIcon
   export const Trash2: LucideIcon
   export const Upload: LucideIcon
+  export const UploadCloud: LucideIcon
   export const Wifi: LucideIcon
   export const Wrench: LucideIcon
   export const X: LucideIcon

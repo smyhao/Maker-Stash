@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { fetchExtensionContributions, runExtensionAction } from '@/api/extensions'
+import { EXTENSIONS_CHANGED_EVENT, fetchExtensionContributions, runExtensionAction } from '@/api/extensions'
 import type { ExtensionContribution } from '@/types'
 
 const props = defineProps<{
@@ -40,7 +40,11 @@ async function runAction(contribution: ExtensionContribution) {
   }
 }
 
-onMounted(loadContributions)
+onMounted(() => {
+  loadContributions()
+  window.addEventListener(EXTENSIONS_CHANGED_EVENT, loadContributions)
+})
+onBeforeUnmount(() => window.removeEventListener(EXTENSIONS_CHANGED_EVENT, loadContributions))
 watch(() => props.place, loadContributions)
 </script>
 

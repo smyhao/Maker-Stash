@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Boxes, Heart, Home, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
+import { Boxes, Heart, Home, ListTodo, MapPinned, Settings, Wrench } from 'lucide-vue-next'
 
+import { EXTENSIONS_CHANGED_EVENT, fetchExtensions } from '@/api/extensions'
 import { useInventoryStore } from '@/stores/inventory'
+import type { ExtensionManifest } from '@/types'
 
 const store = useInventoryStore()
+const route = useRoute()
+const extensions = ref<ExtensionManifest[]>([])
 const restockCount = computed(() => store.stats?.restock_count ?? 0)
 const entries = [
   { route: 'home', label: '工作台', icon: Home },
@@ -12,6 +17,30 @@ const entries = [
   { route: 'locations', label: '位置', icon: MapPinned },
   { route: 'management', label: '管理', icon: Settings },
 ]
+
+const toolExtensions = computed(() => extensions.value.flatMap((extension) => (
+  extension.enabled
+    ? extension.contributions
+      .filter((contribution) => contribution.place === 'tools.menu' && contribution.action.startsWith('open-'))
+      .map((contribution) => ({ extension, contribution }))
+    : []
+)))
+
+async function loadExtensions() {
+  try {
+    const data = await fetchExtensions()
+    extensions.value = data.extensions
+  } catch {
+    extensions.value = []
+  }
+}
+
+onMounted(() => {
+  loadExtensions()
+  window.addEventListener(EXTENSIONS_CHANGED_EVENT, loadExtensions)
+})
+onBeforeUnmount(() => window.removeEventListener(EXTENSIONS_CHANGED_EVENT, loadExtensions))
+watch(() => route.fullPath, loadExtensions)
 </script>
 
 <template>
@@ -41,5 +70,19 @@ const entries = [
         <Heart :size="19" />常用物品
       </span>
     </RouterLink>
+    <template v-if="toolExtensions.length">
+      <div class="mt-6 mb-3 px-3 text-[12px] font-medium uppercase tracking-[0.14em] text-muted">插件扩展</div>
+      <RouterLink
+        v-for="item in toolExtensions"
+        :key="`${item.extension.id}:${item.contribution.action}`"
+        v-slot="{ isActive }"
+        :to="{ name: 'extension-tool', params: { extensionId: item.extension.id } }"
+        class="mt-1"
+      >
+        <span class="flex h-12 items-center gap-3 rounded-xl px-3 text-[14px] font-medium transition" :class="isActive ? 'bg-green/12 text-green' : 'text-ink/75 hover:bg-white'">
+          <Wrench :size="19" />{{ item.contribution.label }}
+        </span>
+      </RouterLink>
+    </template>
   </nav>
 </template>

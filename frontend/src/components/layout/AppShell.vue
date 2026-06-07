@@ -11,8 +11,10 @@ import MoveItemDialog from '@/components/dialogs/MoveItemDialog.vue'
 import QuantityDialog from '@/components/dialogs/QuantityDialog.vue'
 import TagsDialog from '@/components/dialogs/TagsDialog.vue'
 import CategoryFilter from '@/components/layout/CategoryFilter.vue'
+import ExtensionHostView from '@/views/ExtensionHostView.vue'
 import MobileBottomNav from '@/components/layout/MobileBottomNav.vue'
 import SidebarNav from '@/components/layout/SidebarNav.vue'
+import ExtensionSettingsPanel from '@/components/extensions/ExtensionSettingsPanel.vue'
 import BackupManager from '@/components/panels/BackupManager.vue'
 import CategoryManager from '@/components/panels/CategoryManager.vue'
 import DetailPanel from '@/components/panels/DetailPanel.vue'
@@ -29,7 +31,7 @@ import { fetchItems } from '@/api/items'
 import { useInventoryStore } from '@/stores/inventory'
 import type { Item, ItemFormPayload, LocationFormPayload, LocationNode } from '@/types'
 
-type ScreenMode = 'home' | 'inventory' | 'locations' | 'management' | 'categories' | 'backups' | 'settings'
+type ScreenMode = 'home' | 'inventory' | 'locations' | 'management' | 'categories' | 'backups' | 'settings' | 'extensionSettings' | 'extension'
 
 const store = useInventoryStore()
 const route = useRoute()
@@ -60,6 +62,8 @@ const screenMode = computed<ScreenMode>(() => {
     case 'categories': return 'categories'
     case 'backups': return 'backups'
     case 'settings': return 'settings'
+    case 'extension-settings': return 'extensionSettings'
+    case 'extension-tool': return 'extension'
     default: return 'inventory'
   }
 })
@@ -267,7 +271,7 @@ async function reloadWithFilters() {
           </div>
         </div>
       </header>
-      <main class="thin-scrollbar flex-1 overflow-y-auto pb-20">
+      <main class="min-h-0 flex-1" :class="screenMode === 'extension' ? 'h-full overflow-hidden pb-16' : 'thin-scrollbar overflow-y-auto pb-20'">
         <div v-if="notice" class="mx-4 mt-4 rounded-xl border px-3 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-green/20 bg-green/10 text-green'">{{ notice.message }}</div>
         <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
         <HomeDashboard v-else-if="screenMode === 'home'" />
@@ -275,6 +279,8 @@ async function reloadWithFilters() {
         <CategoryManager v-else-if="screenMode === 'categories'" />
         <BackupManager v-else-if="screenMode === 'backups'" />
         <SettingsPanel v-else-if="screenMode === 'settings'" @saved="store.bootstrap()" />
+        <ExtensionSettingsPanel v-else-if="screenMode === 'extensionSettings'" />
+        <ExtensionHostView v-else-if="screenMode === 'extension'" />
         <section v-else class="p-4">
           <h2 class="mb-4 text-[24px] font-semibold">库存</h2>
           <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
@@ -355,13 +361,15 @@ async function reloadWithFilters() {
             <InventoryGrid v-else />
           </div>
         </div>
-        <div v-else class="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
+        <div v-else class="min-h-0 flex-1" :class="screenMode === 'extension' ? 'h-full overflow-hidden' : 'thin-scrollbar overflow-y-auto'">
           <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
           <HomeDashboard v-else-if="screenMode === 'home'" />
           <ManagementHub v-else-if="screenMode === 'management'" />
           <CategoryManager v-else-if="screenMode === 'categories'" />
           <BackupManager v-else-if="screenMode === 'backups'" />
-          <SettingsPanel v-else @saved="store.bootstrap()" />
+          <SettingsPanel v-else-if="screenMode === 'settings'" @saved="store.bootstrap()" />
+          <ExtensionSettingsPanel v-else-if="screenMode === 'extensionSettings'" />
+          <ExtensionHostView v-else-if="screenMode === 'extension'" />
         </div>
       </main>
 

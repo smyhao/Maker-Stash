@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { AlertTriangle, Boxes, ChevronRight, ScrollText, Settings } from 'lucide-vue-next'
+import { AlertTriangle, Boxes, ChevronRight, ScrollText, Settings, Wrench } from 'lucide-vue-next'
 
 const router = useRouter()
 const destinations = [
   { name: 'categories', title: '分类管理', copy: '维护分类树与编号前缀规则', icon: Boxes, action: '进入分类管理' },
   { name: 'backups', title: '备份中心', copy: '创建、下载和恢复数据备份', icon: ScrollText, action: '进入备份中心' },
-  { name: 'settings', title: '连接与 Token', copy: '配置 API 地址并管理访问令牌', icon: Settings, action: '进入设置' },
+  { name: 'settings', title: 'Token 管理', copy: '配置 API 连接并管理访问令牌', icon: Settings, action: '进入 Token 管理' },
+  { name: 'extension-settings', title: '扩展管理', copy: '启用、禁用和配置已安装扩展', icon: Wrench, action: '进入扩展管理' },
 ]
 </script>
 
@@ -14,7 +15,7 @@ const destinations = [
   <section class="p-5 2xl:p-7">
     <h2 class="text-[26px] font-semibold tracking-tight">管理</h2>
     <p class="mt-1 text-[14px] text-muted">管理分类结构、数据安全与连接设置。</p>
-    <div class="mt-7 grid gap-4 xl:grid-cols-3">
+    <div class="mt-7 grid gap-4 xl:grid-cols-4">
       <button v-for="item in destinations" :key="item.name" class="rounded-2xl border border-line bg-white p-5 text-left shadow-sm transition hover:border-green/35 hover:shadow-soft" @click="router.push({ name: item.name })">
         <component :is="item.icon" :size="23" class="text-green" />
         <h3 class="mt-5 text-[18px] font-semibold">{{ item.title }}</h3>

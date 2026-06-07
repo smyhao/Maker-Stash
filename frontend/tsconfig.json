@@ -15,9 +15,12 @@
     "types": ["vite/client"],
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "lucide-vue-next": ["node_modules/lucide-vue-next"],
+      "vue": ["node_modules/vue"],
+      "xlsx": ["node_modules/xlsx"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.vue"],
+  "include": ["src/**/*.ts", "src/**/*.vue", "../extensions/*/src/**/*.ts", "../extensions/*/src/**/*.vue"],
   "references": []
 }

@@ -1,0 +1,19 @@
+{
+  "id": "bom-batch-export",
+  "name": "BOM 批量出库",
+  "description": "上传 BOM 表单，匹配库存物品后导出清单或创建批量出库计划。",
+  "version": "0.1.0",
+  "api_version": "0.1",
+  "settings": {
+    "schema": {}
+  },
+  "contributions": [
+    {
+      "place": "tools.menu",
+      "type": "link",
+      "label": "BOM 批量出库",
+      "action": "open-bom-batch-export",
+      "requires": ["items", "search", "workflow_plan_confirm"]
+    }
+  ]
+}

@@ -10,10 +10,13 @@
 2. [快速开始](QUICKSTART.md)  
    给新扩展建立最小调用闭环：连接主干、读取 capabilities、发起查询和安全写入。
 
-3. [API 调用规范](API.md)  
+3. [扩展开发规范与方法](DEVELOPMENT.md)  
+   说明扩展目录、manifest、API 接入、workflow 选择、错误处理、主干改动和验收清单。
+
+4. [API 调用规范](API.md)  
    作为长期契约参考：认证、幂等、来源字段、能力发现、错误码和版本策略。
 
-4. [Workflow 使用指南](WORKFLOW.md)  
+5. [Workflow 使用指南](WORKFLOW.md)  
    用于批量导入、批量出库、Agent 操作等高风险写入场景。
 
 ## 总原则

@@ -55,9 +55,19 @@ const router = createRouter({
       component: SettingsView,
     },
     {
+      path: '/extension-settings',
+      name: 'extension-settings',
+      component: SettingsView,
+    },
+    {
       path: '/management',
       name: 'management',
       component: ManagementView,
+    },
+    {
+      path: '/extensions/:extensionId',
+      name: 'extension-tool',
+      component: InventoryView,
     },
   ],
 })
