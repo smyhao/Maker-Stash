@@ -1,8 +1,12 @@
 import { deleteData, patchData, postData, requestData } from '@/api/client'
-import type { Category, ContainerBoard, ContainerCreatePayload, ContainerLayoutPayload, Item, LocationNode, SlotAssignment } from '@/types'
+import type { AttributeDefinition, Category, ContainerBoard, ContainerCreatePayload, ContainerLayoutPayload, Item, LocationNode, SlotAssignment } from '@/types'
 
 export function fetchCategories() {
   return requestData<{ categories: Category[] }>('/api/categories/tree')
+}
+
+export function fetchCategoryAttributeDefinitions(categoryId: number) {
+  return requestData<{ attribute_definitions: AttributeDefinition[] }>(`/api/categories/${categoryId}/attribute-definitions`)
 }
 
 export function createCategory(payload: {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Boxes, Heart, Home, ListTodo, MapPinned, Settings, Wrench } from 'lucide-vue-next'
+import { Boxes, Heart, Home, ListTodo, MapPinned, PackagePlus, Settings, Wrench } from 'lucide-vue-next'
 
 import { EXTENSIONS_CHANGED_EVENT, fetchExtensions } from '@/api/extensions'
 import { useInventoryStore } from '@/stores/inventory'
@@ -14,6 +14,7 @@ const restockCount = computed(() => store.stats?.restock_count ?? 0)
 const entries = [
   { route: 'home', label: '工作台', icon: Home },
   { route: 'items', label: '库存', icon: Boxes },
+  { route: 'quick-entry', label: '连续录入', icon: PackagePlus },
   { route: 'locations', label: '位置', icon: MapPinned },
   { route: 'management', label: '管理', icon: Settings },
 ]

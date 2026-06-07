@@ -23,6 +23,7 @@ import InventoryGrid from '@/components/panels/InventoryGrid.vue'
 import InventoryTable from '@/components/panels/InventoryTable.vue'
 import LocationMap from '@/components/panels/LocationMap.vue'
 import ManagementHub from '@/components/panels/ManagementHub.vue'
+import QuickEntryPanel from '@/components/panels/QuickEntryPanel.vue'
 import SettingsPanel from '@/components/panels/SettingsPanel.vue'
 import BrandMark from '@/components/ui/BrandMark.vue'
 import ItemThumb from '@/components/ui/ItemThumb.vue'
@@ -31,7 +32,7 @@ import { fetchItems } from '@/api/items'
 import { useInventoryStore } from '@/stores/inventory'
 import type { Item, ItemFormPayload, LocationFormPayload, LocationNode } from '@/types'
 
-type ScreenMode = 'home' | 'inventory' | 'locations' | 'management' | 'categories' | 'backups' | 'settings' | 'extensionSettings' | 'extension'
+type ScreenMode = 'home' | 'inventory' | 'quickEntry' | 'locations' | 'management' | 'categories' | 'backups' | 'settings' | 'extensionSettings' | 'extension'
 
 const store = useInventoryStore()
 const route = useRoute()
@@ -57,6 +58,7 @@ let searchRequest = 0
 const screenMode = computed<ScreenMode>(() => {
   switch (String(route.name || 'home')) {
     case 'home': return 'home'
+    case 'quick-entry': return 'quickEntry'
     case 'locations': return 'locations'
     case 'management': return 'management'
     case 'categories': return 'categories'
@@ -240,7 +242,7 @@ async function reloadWithFilters() {
 
 <template>
   <div class="min-h-screen bg-wash text-ink">
-    <div class="flex min-h-screen flex-col lg:hidden">
+    <div class="flex h-screen min-h-0 flex-col overflow-hidden lg:hidden">
       <header class="border-b border-line bg-panel px-4 py-4">
         <div class="mb-4 flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -275,6 +277,7 @@ async function reloadWithFilters() {
         <div v-if="notice" class="mx-4 mt-4 rounded-xl border px-3 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-green/20 bg-green/10 text-green'">{{ notice.message }}</div>
         <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
         <HomeDashboard v-else-if="screenMode === 'home'" />
+        <QuickEntryPanel v-else-if="screenMode === 'quickEntry'" />
         <ManagementHub v-else-if="screenMode === 'management'" />
         <CategoryManager v-else-if="screenMode === 'categories'" />
         <BackupManager v-else-if="screenMode === 'backups'" />
@@ -364,6 +367,7 @@ async function reloadWithFilters() {
         <div v-else class="min-h-0 flex-1" :class="screenMode === 'extension' ? 'h-full overflow-hidden' : 'thin-scrollbar overflow-y-auto'">
           <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
           <HomeDashboard v-else-if="screenMode === 'home'" />
+          <QuickEntryPanel v-else-if="screenMode === 'quickEntry'" />
           <ManagementHub v-else-if="screenMode === 'management'" />
           <CategoryManager v-else-if="screenMode === 'categories'" />
           <BackupManager v-else-if="screenMode === 'backups'" />

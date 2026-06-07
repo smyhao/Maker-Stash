@@ -25,6 +25,11 @@ const router = createRouter({
       component: ItemListView,
     },
     {
+      path: '/quick-entry',
+      name: 'quick-entry',
+      component: InventoryView,
+    },
+    {
       path: '/locations',
       name: 'locations',
       component: LocationView,

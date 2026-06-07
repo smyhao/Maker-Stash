@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Boxes, Home, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
+import { Boxes, Home, MapPinned, PackagePlus, Settings } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -26,22 +26,22 @@ import { Boxes, Home, ListTodo, MapPinned, Settings } from 'lucide-vue-next'
     </RouterLink>
     <RouterLink
       v-slot="{ isActive }"
+      :to="{ name: 'quick-entry' }"
+      class="grid place-items-center"
+    >
+      <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
+        <PackagePlus :size="21" />
+        录入
+      </span>
+    </RouterLink>
+    <RouterLink
+      v-slot="{ isActive }"
       :to="{ name: 'locations' }"
       class="grid place-items-center"
     >
       <span class="grid place-items-center" :class="isActive ? 'text-blue' : ''">
         <MapPinned :size="21" />
         位置
-      </span>
-    </RouterLink>
-    <RouterLink
-      v-slot="{ isActive }"
-      :to="{ name: 'restock' }"
-      class="grid place-items-center"
-    >
-      <span class="grid place-items-center" :class="isActive ? 'text-amber' : ''">
-        <ListTodo :size="21" />
-        补货
       </span>
     </RouterLink>
     <RouterLink

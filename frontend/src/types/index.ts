@@ -113,10 +113,30 @@ export interface ItemFormPayload {
   unit?: string | null
   status?: Status
   description?: string | null
+  attributes?: Array<{
+    name: string
+    key: string
+    value?: string | null
+    value_type?: string | null
+    unit?: string | null
+  }>
   tags?: string[]
   note?: string | null
   need_restock?: boolean
   is_favorite?: boolean
+}
+
+export interface AttributeDefinition {
+  id: number
+  category_id: number
+  name: string
+  key: string
+  field_type: string
+  unit: string | null
+  options_json: string | null
+  required: boolean
+  sort_order: number
+  is_enabled: boolean
 }
 
 export interface ItemAttribute {
