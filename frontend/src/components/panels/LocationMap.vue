@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowDownToLine, Boxes, ChevronRight, Container, Grid2X2, MapPinned, Paperclip, Pencil, Plus, Trash2 } from 'lucide-vue-next'
+import { ArrowDownToLine, Boxes, ChevronRight, Container, Grid2X2, MapPinned, Paperclip, Pencil, Plus, ScrollText, Trash2, X } from 'lucide-vue-next'
 
 import { convertLocationToContainer, fetchContainerBoard, fetchLocationItems, swapContainerSlots } from '@/api/catalog'
 import { downloadAttachmentFile, fetchItem, fetchItemAttachments, fetchItemAttributes, fetchItems, moveItem } from '@/api/items'
@@ -40,6 +40,8 @@ const pickerQuery = ref('')
 const pickerItems = ref<Item[]>([])
 const pickerLoading = ref(false)
 const pickerSlot = ref<ContainerBoardSlot | null>(null)
+const pdfPreviewAttachment = ref<Attachment | null>(null)
+const pdfPreviewUrl = ref<string | null>(null)
 let media: MediaQueryList | null = null
 let slotDetailRequest = 0
 let pickerRequest = 0
@@ -72,7 +74,10 @@ onMounted(() => {
   media.addEventListener('change', updateMobile)
 })
 
-onBeforeUnmount(() => media?.removeEventListener('change', updateMobile))
+onBeforeUnmount(() => {
+  media?.removeEventListener('change', updateMobile)
+  closePdfPreview()
+})
 
 watch(
   () => store.locations,
@@ -282,6 +287,29 @@ async function downloadAttachment(attachment: Attachment) {
   link.download = attachment.original_name
   link.click()
   URL.revokeObjectURL(url)
+}
+
+function canPreviewAttachment(attachment: Attachment) {
+  return attachment.mime_type === 'application/pdf' || attachment.original_name.toLowerCase().endsWith('.pdf')
+}
+
+async function previewAttachment(attachment: Attachment) {
+  try {
+    const blob = await downloadAttachmentFile(attachment.id)
+    const previewBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+    const url = URL.createObjectURL(previewBlob)
+    closePdfPreview()
+    pdfPreviewAttachment.value = attachment
+    pdfPreviewUrl.value = url
+  } catch {
+    window.alert('附件预览失败，请下载后查看。')
+  }
+}
+
+function closePdfPreview() {
+  if (pdfPreviewUrl.value) URL.revokeObjectURL(pdfPreviewUrl.value)
+  pdfPreviewUrl.value = null
+  pdfPreviewAttachment.value = null
 }
 
 function startArrange(slot?: ContainerBoardSlot) {
@@ -560,9 +588,14 @@ async function placePickedItem(item: Item) {
                       <div class="truncate text-[13px] font-medium">{{ attachment.original_name }}</div>
                       <div class="text-[12px] text-muted">{{ attachment.mime_type || '未知类型' }}<template v-if="formatBytes(attachment.size_bytes)"> · {{ formatBytes(attachment.size_bytes) }}</template></div>
                     </div>
-                    <button class="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-line text-green" title="下载" @click="downloadAttachment(attachment)">
-                      <ArrowDownToLine :size="15" />
-                    </button>
+                    <div class="flex shrink-0 gap-2">
+                      <button v-if="canPreviewAttachment(attachment)" class="grid h-8 w-8 place-items-center rounded-lg border border-line text-ink/70" title="预览" @click="previewAttachment(attachment)">
+                        <ScrollText :size="15" />
+                      </button>
+                      <button class="grid h-8 w-8 place-items-center rounded-lg border border-line text-green" title="下载" @click="downloadAttachment(attachment)">
+                        <ArrowDownToLine :size="15" />
+                      </button>
+                    </div>
                   </div>
                   <div v-if="!slotDocumentAttachments.length" class="px-3 py-4 text-[13px] text-muted">暂无附件</div>
                 </div>
@@ -616,6 +649,18 @@ async function placePickedItem(item: Item) {
       @convert="convertContainer"
       @edit="updateLayout"
     />
+
+    <div v-if="pdfPreviewUrl && pdfPreviewAttachment" class="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" @click.self="closePdfPreview">
+      <section class="flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-[8px] border border-line bg-white shadow-soft">
+        <header class="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
+          <h3 class="truncate text-[15px] font-semibold">{{ pdfPreviewAttachment.original_name }}</h3>
+          <button class="grid h-8 w-8 place-items-center rounded-[6px] text-muted hover:bg-slate-50" title="关闭" @click="closePdfPreview">
+            <X :size="18" />
+          </button>
+        </header>
+        <iframe :src="pdfPreviewUrl" class="min-h-0 flex-1 bg-white" title="PDF 预览"></iframe>
+      </section>
+    </div>
 
     <div v-if="pickerOpen && pickerSlot" class="fixed inset-0 z-50 grid place-items-center bg-ink/30 p-4" @click.self="pickerOpen = false">
       <div class="w-full max-w-[560px] overflow-hidden rounded-2xl border border-line bg-white shadow-soft">

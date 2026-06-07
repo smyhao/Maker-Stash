@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { ArrowDownToLine, ArrowUpFromLine, Heart, MapPinned, PackageCheck, Paperclip, Pencil, SlidersHorizontal, Trash2, Upload, X } from 'lucide-vue-next'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ArrowDownToLine, Heart, MapPinned, PackageCheck, Paperclip, Pencil, ScrollText, SlidersHorizontal, Trash2, Upload, X } from 'lucide-vue-next'
 
 import ExtensionActionSlot from '@/components/extensions/ExtensionActionSlot.vue'
 import StatusDot from '@/components/ui/StatusDot.vue'
@@ -46,6 +46,9 @@ const coverAttachment = computed(() => {
 })
 const documentAttachments = computed(() => store.selectedAttachments.filter((attachment) => !isCoverAttachment(attachment)))
 const coverUrl = ref<string | null>(null)
+const coverHovered = ref(false)
+const pdfPreviewAttachment = ref<Attachment | null>(null)
+const pdfPreviewUrl = ref<string | null>(null)
 
 function isCoverAttachment(attachment: Attachment) {
   return attachment.is_cover || attachment.id === item.value?.cover_attachment_id
@@ -54,6 +57,12 @@ function isCoverAttachment(attachment: Attachment) {
 function clearCoverUrl() {
   if (coverUrl.value) URL.revokeObjectURL(coverUrl.value)
   coverUrl.value = null
+}
+
+function closePdfPreview() {
+  if (pdfPreviewUrl.value) URL.revokeObjectURL(pdfPreviewUrl.value)
+  pdfPreviewUrl.value = null
+  pdfPreviewAttachment.value = null
 }
 
 watch(
@@ -78,7 +87,12 @@ watch(
   },
 )
 
-onBeforeUnmount(clearCoverUrl)
+onBeforeUnmount(() => {
+  clearCoverUrl()
+  closePdfPreview()
+})
+onMounted(() => window.addEventListener('paste', onWindowPaste))
+onBeforeUnmount(() => window.removeEventListener('paste', onWindowPaste))
 
 function onAttachmentChange(event: Event) {
   const input = event.target as HTMLInputElement
@@ -92,6 +106,38 @@ function onImageChange(event: Event) {
   const file = input.files?.[0]
   if (file && validateFile(file, true)) emit('uploadImage', file)
   input.value = ''
+}
+
+function onWindowPaste(event: ClipboardEvent) {
+  if (!item.value || !coverHovered.value || isEditablePasteTarget(event.target)) return
+
+  const file = getPastedImageFile(event.clipboardData)
+  if (!file) return
+
+  event.preventDefault()
+  if (coverAttachment.value && !window.confirm('当前物品已有封面，是否替换为粘贴的图片？')) return
+  if (validateFile(file, true)) emit('uploadImage', file)
+}
+
+function isEditablePasteTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
+}
+
+function getPastedImageFile(data: DataTransfer | null) {
+  if (!data) return null
+
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== 'file' || !item.type.startsWith('image/')) continue
+    const file = item.getAsFile()
+    if (!file) return null
+    if (file.name) return file
+
+    const extension = item.type.split('/')[1] || 'png'
+    return new File([file], `pasted-cover.${extension}`, { type: file.type, lastModified: file.lastModified })
+  }
+
+  return null
 }
 
 function validateFile(file: File, imageOnly = false) {
@@ -115,6 +161,23 @@ async function downloadAttachment(attachment: Attachment) {
   link.click()
   URL.revokeObjectURL(url)
 }
+
+function canPreviewAttachment(attachment: Attachment) {
+  return attachment.mime_type === 'application/pdf' || attachment.original_name.toLowerCase().endsWith('.pdf')
+}
+
+async function previewAttachment(attachment: Attachment) {
+  try {
+    const blob = await downloadAttachmentFile(attachment.id)
+    const previewBlob = blob.type === 'application/pdf' ? blob : new Blob([blob], { type: 'application/pdf' })
+    const url = URL.createObjectURL(previewBlob)
+    closePdfPreview()
+    pdfPreviewAttachment.value = attachment
+    pdfPreviewUrl.value = url
+  } catch {
+    window.alert('附件预览失败，请下载后查看。')
+  }
+}
 </script>
 
 <template>
@@ -127,13 +190,23 @@ async function downloadAttachment(attachment: Attachment) {
     </div>
 
       <div class="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3 2xl:px-5 2xl:py-4">
-      <div class="relative grid min-h-[144px] place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100 p-3 2xl:min-h-[176px]">
+      <div
+        class="relative grid min-h-[144px] place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100 p-3 2xl:min-h-[176px]"
+        @mouseenter="coverHovered = true"
+        @mouseleave="coverHovered = false"
+      >
         <img v-if="coverUrl" :src="coverUrl" :alt="item.name" class="max-h-[128px] max-w-full object-contain 2xl:max-h-[160px]" />
         <div v-else class="h-[70px] w-[120px] rounded-full bg-[radial-gradient(circle_at_center,#16191f_0,#16191f_40%,#2a2f36_42%,#0c0d10_64%,transparent_65%)] shadow-soft 2xl:h-[88px] 2xl:w-[150px]"></div>
-        <label class="absolute right-2 top-2 inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-line bg-white/95 px-3 text-[12px] font-medium text-ink/80 shadow-sm hover:border-blue hover:text-blue">
-          <Upload :size="14" />封面
-          <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" @change="onImageChange" />
-        </label>
+        <div v-if="!coverAttachment && coverHovered" class="absolute inset-x-3 bottom-3 rounded-[6px] border border-dashed border-blue/40 bg-white/90 px-3 py-2 text-center text-[12px] text-blue shadow-sm">粘贴图片上传封面</div>
+        <div class="absolute right-2 top-2 flex gap-2">
+          <button v-if="coverAttachment" class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-red-200 bg-white/95 px-3 text-[12px] font-medium text-red-600 shadow-sm hover:bg-red-50" title="删除封面" @click="emit('deleteAttachment', coverAttachment.id)">
+            <Trash2 :size="14" />删除
+          </button>
+          <label class="inline-flex h-8 cursor-pointer items-center gap-1 rounded-[6px] border border-line bg-white/95 px-3 text-[12px] font-medium text-ink/80 shadow-sm hover:border-blue hover:text-blue">
+            <Upload :size="14" />封面
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" class="hidden" @change="onImageChange" />
+          </label>
+        </div>
       </div>
 
       <dl class="mt-3 grid grid-cols-[78px_1fr] gap-y-2 text-[14px] 2xl:mt-4 2xl:grid-cols-[92px_1fr] 2xl:gap-y-3">
@@ -213,6 +286,9 @@ async function downloadAttachment(attachment: Attachment) {
               <div class="text-[12px] text-muted">{{ attachment.mime_type || '未知类型' }}</div>
             </div>
             <div class="flex shrink-0 gap-2">
+              <button v-if="canPreviewAttachment(attachment)" class="grid h-8 w-8 place-items-center rounded-[6px] border border-line text-ink/70" title="预览" @click="previewAttachment(attachment)">
+                <ScrollText :size="15" />
+              </button>
               <button class="grid h-8 w-8 place-items-center rounded-[6px] border border-line text-blue" title="下载" @click="downloadAttachment(attachment)">
                 <ArrowDownToLine :size="15" />
               </button>
@@ -240,6 +316,18 @@ async function downloadAttachment(attachment: Attachment) {
           <div v-if="!store.selectedNotes.length" class="px-4 py-6 text-[14px] text-muted">暂无记录</div>
         </div>
       </div>
+    </div>
+
+    <div v-if="pdfPreviewUrl && pdfPreviewAttachment" class="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" @click.self="closePdfPreview">
+      <section class="flex h-[86vh] w-full max-w-5xl flex-col overflow-hidden rounded-[8px] border border-line bg-white shadow-soft">
+        <header class="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
+          <h3 class="truncate text-[15px] font-semibold">{{ pdfPreviewAttachment.original_name }}</h3>
+          <button class="grid h-8 w-8 place-items-center rounded-[6px] text-muted hover:bg-slate-50" title="关闭" @click="closePdfPreview">
+            <X :size="18" />
+          </button>
+        </header>
+        <iframe :src="pdfPreviewUrl" class="min-h-0 flex-1 bg-white" title="PDF 预览"></iframe>
+      </section>
     </div>
   </section>
 </template>

@@ -398,8 +398,9 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     async deleteSelectedAttachment(id: number) {
+      const item = this.selectedItem
       await deleteAttachment(id)
-      await this.loadSelectedMeta()
+      if (item) await this.selectItem(item.code)
       await this.refreshStats()
     },
 
