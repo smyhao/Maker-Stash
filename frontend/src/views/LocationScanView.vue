@@ -220,6 +220,12 @@ function isImagePreview(attachment: Attachment) {
   return Boolean(attachment.mime_type?.startsWith('image/'))
 }
 
+function slotItemSummary(item: Item) {
+  const quantity = item.quantity ?? null
+  if (quantity === null || quantity === '') return item.code
+  return `${quantity}${item.unit ? ` ${item.unit}` : ''} · ${item.code}`
+}
+
 async function openAttachmentPreview(attachment: Attachment) {
   const blob = await downloadAttachmentFile(attachment.id)
   closeAttachmentPreview()
@@ -309,10 +315,24 @@ function back() {
           <h2 class="text-[22px] font-semibold">{{ board.container.name }}</h2>
           <p class="mt-1 break-all font-mono text-[12px] text-muted">{{ board.container.full_code }}</p>
           <div class="mt-5 grid gap-2" :style="{ gridTemplateColumns: `repeat(${board.container.layout_columns || 1}, minmax(0, 1fr))` }">
-            <div v-for="entry in board.slots" :key="entry.location.id" class="min-h-[72px] rounded-xl border p-2" :class="entry.item ? 'border-line bg-white' : 'border-dashed border-line bg-wash'">
-              <div class="text-[12px] font-semibold text-muted">{{ entry.location.slot_key }}</div>
-              <div class="mt-2 truncate text-[12px]" :class="entry.item ? 'text-ink' : 'text-muted'">{{ entry.item?.name || '空' }}</div>
-            </div>
+            <button
+              v-for="entry in board.slots"
+              :key="entry.location.id"
+              :disabled="!entry.item"
+              class="min-h-[86px] rounded-xl border p-2 text-left transition disabled:cursor-default"
+              :class="entry.item ? 'border-line bg-white hover:border-green/40 active:bg-green/5' : 'border-dashed border-line bg-wash'"
+              @click="entry.item && openItemDetail(entry.item)"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-[12px] font-semibold text-muted">{{ entry.location.slot_key }}</span>
+                <span v-if="entry.item" class="rounded-full bg-green/10 px-1.5 py-0.5 text-[10px] text-green">查看</span>
+              </div>
+              <template v-if="entry.item">
+                <div class="slot-item-name mt-2 text-[12px] font-medium leading-4 text-ink">{{ entry.item.name }}</div>
+                <div class="mt-1 truncate text-[11px] leading-4 text-muted">{{ slotItemSummary(entry.item) }}</div>
+              </template>
+              <div v-else class="mt-3 text-[12px] text-muted">空</div>
+            </button>
           </div>
         </template>
 
@@ -386,10 +406,24 @@ function back() {
             <h3 class="text-[22px] font-semibold">{{ board.container.name }}</h3>
             <p class="mt-1 break-all font-mono text-[12px] text-muted">{{ board.container.full_code }}</p>
             <div class="mt-5 grid gap-2" :style="{ gridTemplateColumns: `repeat(${board.container.layout_columns || 1}, minmax(0, 1fr))` }">
-              <div v-for="entry in board.slots" :key="entry.location.id" class="min-h-[72px] rounded-xl border p-2" :class="entry.item ? 'border-line bg-white' : 'border-dashed border-line bg-wash'">
-                <div class="text-[12px] font-semibold text-muted">{{ entry.location.slot_key }}</div>
-                <div class="mt-2 truncate text-[12px]" :class="entry.item ? 'text-ink' : 'text-muted'">{{ entry.item?.name || '空' }}</div>
-              </div>
+              <button
+                v-for="entry in board.slots"
+                :key="entry.location.id"
+                :disabled="!entry.item"
+                class="min-h-[86px] rounded-xl border p-2 text-left transition disabled:cursor-default"
+                :class="entry.item ? 'border-line bg-white hover:border-green/40 active:bg-green/5' : 'border-dashed border-line bg-wash'"
+                @click="entry.item && openItemDetail(entry.item)"
+              >
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[12px] font-semibold text-muted">{{ entry.location.slot_key }}</span>
+                  <span v-if="entry.item" class="rounded-full bg-green/10 px-1.5 py-0.5 text-[10px] text-green">查看</span>
+                </div>
+                <template v-if="entry.item">
+                  <div class="slot-item-name mt-2 text-[12px] font-medium leading-4 text-ink">{{ entry.item.name }}</div>
+                  <div class="mt-1 truncate text-[11px] leading-4 text-muted">{{ slotItemSummary(entry.item) }}</div>
+                </template>
+                <div v-else class="mt-3 text-[12px] text-muted">空</div>
+              </button>
             </div>
           </template>
 
@@ -474,3 +508,13 @@ function back() {
     </div>
   </main>
 </template>
+
+<style scoped>
+.slot-item-name {
+  display: -webkit-box;
+  min-height: 32px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+</style>

@@ -488,7 +488,7 @@ async function placePickedItem(item: Item) {
             <button
               v-for="slot in board.slots"
               :key="slot.location.id"
-              class="min-h-[92px] rounded-xl border p-2 text-left transition lg:min-h-[108px] lg:p-3"
+              class="slot-cell min-h-[92px] overflow-hidden rounded-xl border p-2 text-left transition lg:min-h-[108px] lg:p-3"
               :class="[
                 sourceSlot?.location.id === slot.location.id ? 'border-green bg-green/10 ring-2 ring-green/20' :
                 targetSlot?.location.id === slot.location.id ? 'border-dashed border-green bg-green/5' :
@@ -499,15 +499,15 @@ async function placePickedItem(item: Item) {
             >
               <span class="block text-[12px] font-semibold" :class="slot.item?.need_restock ? 'text-clay' : 'text-muted'">{{ slot.location.slot_key }}</span>
               <template v-if="slot.item">
-                <span class="mt-2 flex min-w-0 items-center gap-2">
-                  <ItemThumb v-if="slot.item.cover_attachment_id" :item="slot.item" :show-fallback="false" compact />
-                  <span class="min-w-0">
-                    <span class="block truncate text-[13px] font-medium text-ink lg:text-[14px]">{{ slot.item.name }}</span>
-                    <span class="mt-1 block text-[12px] text-muted">{{ slot.item.quantity ?? '-' }} {{ slot.item.unit || '' }}</span>
+                <span class="mt-2 grid min-w-0 gap-1">
+                  <span v-if="slot.item.cover_attachment_id" class="grid h-8 w-full place-items-center overflow-hidden rounded-[6px] bg-white/70 lg:h-9">
+                    <ItemThumb :item="slot.item" :show-fallback="false" compact />
                   </span>
+                  <span class="slot-item-name text-[12px] font-medium leading-4 text-ink lg:text-[13px]">{{ slot.item.name }}</span>
+                  <span class="block truncate text-[11px] leading-4 text-muted lg:text-[12px]">{{ slot.item.quantity ?? '-' }} {{ slot.item.unit || '' }}</span>
                 </span>
               </template>
-              <span v-else class="mt-3 block text-[12px] text-muted">{{ targetSlot?.location.id === slot.location.id ? '放到此格' : '空格位' }}</span>
+              <span v-else class="mt-3 block truncate text-[12px] text-muted">{{ targetSlot?.location.id === slot.location.id ? '放入' : '空' }}</span>
             </button>
           </div>
         </template>
@@ -718,3 +718,20 @@ async function placePickedItem(item: Item) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.slot-cell :deep(img) {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.slot-item-name {
+  display: -webkit-box;
+  min-height: 32px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+</style>

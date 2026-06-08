@@ -116,16 +116,16 @@ function submit() {
 </script>
 
 <template>
-  <div v-if="open" class="fixed inset-0 z-40 grid place-items-center bg-ink/25 px-4">
-    <form class="w-full max-w-[560px] rounded-[8px] border border-line bg-white shadow-soft" @submit.prevent="submit">
-      <header class="flex h-14 items-center justify-between border-b border-line px-5">
+  <div v-if="open" class="fixed inset-0 z-40 flex items-start justify-center overflow-hidden bg-ink/25 p-3 sm:items-center sm:p-4">
+    <form class="flex max-h-[calc(100dvh-24px)] w-full max-w-[560px] flex-col overflow-hidden rounded-[8px] border border-line bg-white shadow-soft sm:max-h-[calc(100dvh-32px)]" @submit.prevent="submit">
+      <header class="flex h-14 shrink-0 items-center justify-between border-b border-line px-5">
         <h2 class="text-[18px] font-semibold">{{ title }}</h2>
         <button type="button" class="grid h-9 w-9 place-items-center rounded-[6px] text-muted hover:bg-slate-50" @click="emit('close')">
           <X :size="20" />
         </button>
       </header>
 
-      <div class="grid gap-4 p-5 sm:grid-cols-2">
+      <div class="thin-scrollbar grid min-h-0 flex-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
         <div v-if="mode === 'create' && locationCode" class="sm:col-span-2 rounded-xl border border-green/20 bg-green/10 px-3 py-2 text-[13px] text-green">
           新物品将直接放入格位：{{ locationLabel || locationCode }}
         </div>
@@ -192,7 +192,7 @@ function submit() {
         </label>
       </div>
 
-      <footer class="flex justify-end gap-3 border-t border-line px-5 py-4">
+      <footer class="flex shrink-0 justify-end gap-3 border-t border-line px-5 py-4">
         <div v-if="formError" class="mr-auto self-center text-[13px] text-red-600">{{ formError }}</div>
         <button type="button" class="h-10 rounded-[8px] border border-line px-4 text-[14px]" @click="emit('close')">取消</button>
         <button type="submit" :disabled="busy || !form.name.trim() || !!quantityError" class="h-10 rounded-[8px] bg-blue px-5 text-[14px] font-medium text-white disabled:opacity-50">
