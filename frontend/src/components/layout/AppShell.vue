@@ -395,7 +395,7 @@ async function reloadWithFilters() {
     </div>
 
     <div v-if="mobileDetailOpen && screenMode === 'inventory'" class="fixed inset-0 z-30 bg-ink/25 lg:hidden" @click.self="mobileDetailOpen = false">
-      <section class="absolute inset-x-0 bottom-16 max-h-[66vh] overflow-hidden rounded-t-3xl bg-white shadow-soft">
+      <section class="absolute inset-x-0 bottom-16 flex h-[78dvh] max-h-[calc(100dvh-5rem)] min-h-0 flex-col overflow-hidden rounded-t-3xl bg-white shadow-soft">
         <button class="absolute right-4 top-3 z-10 grid h-9 w-9 place-items-center rounded-full bg-wash" @click="mobileDetailOpen = false"><X :size="17" /></button>
         <DetailPanel @add-quantity="quantityDialog = 'add'" @use-quantity="quantityDialog = 'use'" @adjust-quantity="quantityDialog = 'adjust'" @edit="itemDialog = 'edit'" @delete="deleteDialogOpen = true" @favorite="runBusy(() => store.toggleSelectedFavorite())" @restock="runBusy(() => store.toggleSelectedRestock())" @edit-tags="tagsOpen = true" @edit-attributes="attributesOpen = true" @move="moveDialogOpen = true" @upload-image="(file) => runBusy(() => store.uploadSelectedImage(file))" @upload-attachment="(file) => runBusy(() => store.uploadSelectedAttachment(file))" @delete-attachment="(id) => runBusy(() => store.deleteSelectedAttachment(id))" />
       </section>

@@ -181,7 +181,7 @@ async function previewAttachment(attachment: Attachment) {
 </script>
 
 <template>
-  <section v-if="item" class="flex h-full min-h-0 flex-col">
+  <section v-if="item" class="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
     <div class="flex h-[56px] shrink-0 items-center justify-between border-b border-line px-5">
       <h2 class="truncate text-[20px] font-semibold">{{ item.name }}</h2>
       <button class="grid h-9 w-9 place-items-center rounded-[6px] text-muted hover:bg-slate-50">
@@ -189,7 +189,7 @@ async function previewAttachment(attachment: Attachment) {
       </button>
     </div>
 
-      <div class="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-4 py-3 2xl:px-5 2xl:py-4">
+      <div class="thin-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 py-3 2xl:px-5 2xl:py-4">
       <div
         class="relative grid min-h-[144px] place-items-center overflow-hidden rounded-[8px] border border-line bg-gradient-to-br from-white to-slate-100 p-3 2xl:min-h-[176px]"
         @mouseenter="coverHovered = true"
@@ -211,9 +211,9 @@ async function previewAttachment(attachment: Attachment) {
 
       <dl class="mt-3 grid grid-cols-[78px_1fr] gap-y-2 text-[14px] 2xl:mt-4 2xl:grid-cols-[92px_1fr] 2xl:gap-y-3">
         <dt class="text-muted">类型</dt><dd>{{ category }}</dd>
-        <dt class="text-muted">编号</dt><dd>{{ item.code }}</dd>
+        <dt class="text-muted">编号</dt><dd class="min-w-0 break-all">{{ item.code }}</dd>
         <dt class="text-muted">数量</dt><dd><b>{{ item.quantity ?? '—' }}</b> {{ item.unit }}</dd>
-        <dt class="text-muted">位置</dt><dd>{{ item.location_display || item.location_text || location || '未记录' }}</dd>
+        <dt class="text-muted">位置</dt><dd class="min-w-0 break-words">{{ item.location_display || item.location_text || location || '未记录' }}</dd>
         <dt class="text-muted">状态</dt><dd><StatusDot :status="item.status" /></dd>
         <dt class="text-muted">标签</dt>
         <dd class="flex flex-wrap gap-2">
@@ -221,7 +221,7 @@ async function previewAttachment(attachment: Attachment) {
           <span v-if="!store.selectedTags.length" class="text-muted">暂无</span>
           <button class="rounded-[5px] border border-blue/30 px-2 py-1 text-[12px] text-blue" @click="emit('editTags')">编辑</button>
         </dd>
-        <dt class="text-muted">备注</dt><dd class="text-muted">{{ item.description || '添加备注...' }}</dd>
+        <dt class="text-muted">备注</dt><dd class="min-w-0 break-words text-muted">{{ item.description || '添加备注...' }}</dd>
       </dl>
 
       <div class="mt-4 border-t border-line pt-3 2xl:mt-5 2xl:pt-4">

@@ -417,7 +417,7 @@ async function placePickedItem(item: Item) {
 </script>
 
 <template>
-  <section class="p-4 2xl:p-6">
+  <section class="min-w-0 overflow-x-hidden p-4 2xl:p-6">
     <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
       <div>
         <h2 class="text-[25px] font-semibold tracking-tight">位置</h2>
@@ -438,7 +438,7 @@ async function placePickedItem(item: Item) {
       {{ message.text }}
     </div>
 
-    <div class="grid gap-4 xl:grid-cols-[255px_minmax(400px,1fr)_300px]">
+    <div class="grid min-w-0 gap-4 xl:grid-cols-[255px_minmax(400px,1fr)_300px]">
       <aside class="rounded-2xl border border-line bg-white p-3">
         <div class="mb-3 px-2 text-[13px] font-medium text-muted">收纳位置</div>
         <button
@@ -463,7 +463,7 @@ async function placePickedItem(item: Item) {
         </button>
       </aside>
 
-      <main class="min-w-0 rounded-2xl border border-line bg-white p-4 lg:p-5">
+      <main class="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4 lg:p-5">
         <template v-if="board">
           <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -484,7 +484,7 @@ async function placePickedItem(item: Item) {
             </div>
           </div>
           <div v-if="boardLoading" class="py-16 text-center text-[14px] text-muted">正在加载格位...</div>
-          <div v-else class="grid gap-2 rounded-2xl border p-3 lg:gap-3 lg:p-4" :style="boardStyle(board.container)">
+          <div v-else class="grid max-w-full min-w-0 gap-2 overflow-hidden rounded-2xl border p-3 lg:gap-3 lg:p-4" :style="boardStyle(board.container)">
             <button
               v-for="slot in board.slots"
               :key="slot.location.id"
@@ -551,7 +551,7 @@ async function placePickedItem(item: Item) {
         </div>
       </main>
 
-      <aside class="rounded-2xl border border-line bg-white p-4">
+      <aside class="min-w-0 overflow-hidden rounded-2xl border border-line bg-white p-4">
         <template v-if="board">
           <h3 class="text-[17px] font-semibold">{{ isMobile ? '格位定位' : arranging ? '正在整理' : '格位详情' }}</h3>
           <p class="mt-2 text-[13px] leading-5 text-muted">
