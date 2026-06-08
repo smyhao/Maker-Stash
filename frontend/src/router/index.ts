@@ -70,6 +70,21 @@ const router = createRouter({
       component: ManagementView,
     },
     {
+      path: '/location-labels',
+      name: 'location-labels',
+      component: InventoryView,
+    },
+    {
+      path: '/location-label-print',
+      name: 'location-label-print',
+      component: () => import('@/views/LocationLabelPrintView.vue'),
+    },
+    {
+      path: '/location-scan',
+      name: 'location-scan',
+      component: () => import('@/views/LocationScanView.vue'),
+    },
+    {
       path: '/extensions/:extensionId',
       name: 'extension-tool',
       component: InventoryView,

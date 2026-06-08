@@ -1,5 +1,5 @@
 import { deleteData, patchData, postData, requestData } from '@/api/client'
-import type { AttributeDefinition, Category, ContainerBoard, ContainerCreatePayload, ContainerLayoutPayload, Item, LocationNode, SlotAssignment } from '@/types'
+import type { AttributeDefinition, Category, ContainerBoard, ContainerCreatePayload, ContainerLayoutPayload, Item, LocationNode, MslocResolution, SlotAssignment } from '@/types'
 
 export function fetchCategories() {
   return requestData<{ categories: Category[] }>('/api/categories/tree')
@@ -39,6 +39,22 @@ export function fetchLocations() {
 
 export function fetchLocationItems(id: number) {
   return requestData<{ items: Item[] }>(`/api/locations/${id}/items`)
+}
+
+export function fetchLocation(id: number) {
+  return requestData<LocationNode>(`/api/locations/${id}`)
+}
+
+export function fetchLocationByCode(fullCode: string) {
+  return requestData<LocationNode>(`/api/locations/by-code/${encodeURIComponent(fullCode)}`)
+}
+
+export function fetchLocationItemsByCode(fullCode: string) {
+  return requestData<{ items: Item[] }>(`/api/locations/by-code/${encodeURIComponent(fullCode)}/items`)
+}
+
+export function resolveMsloc(code: string) {
+  return requestData<MslocResolution>('/api/locations/resolve-msloc', { code })
 }
 
 export function createLocation(payload: {

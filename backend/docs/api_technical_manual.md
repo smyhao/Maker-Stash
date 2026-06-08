@@ -18,7 +18,7 @@ app/api/
 └── routes/
     ├── health.py          健康检查、系统信息、能力发现
     ├── categories.py      分类 CRUD
-    ├── locations.py       位置 CRUD + 按位置查物品
+    ├── locations.py       位置 CRUD + 按位置查物品 + 收纳盒格位查询
     ├── items.py           物品 CRUD + 业务动作 + 备注
     ├── search.py          全局搜索
     ├── metadata.py        标签、别名、外部标识
@@ -448,6 +448,7 @@ is_archived, created_at, updated_at
 | POST | `/api/locations` | 新增位置 |
 | GET | `/api/locations/{id}` | 按 ID 查详情 |
 | GET | `/api/locations/{id}/items` | 按 ID 查下级物品 |
+| GET | `/api/locations/resolve-msloc?code=MSLOC:<full_code>` | 解析位置二维码并返回只读查看上下文 |
 | GET | `/api/locations/by-code/{full_code}` | 按 full_code 查详情 |
 | GET | `/api/locations/by-code/{full_code}/items` | 按 full_code 查下级物品 |
 | POST | `/api/locations/containers` | 创建可视化收纳盒并生成格位 |
@@ -505,6 +506,65 @@ is_archived, created_at, updated_at
 ```
 
 交换只适用于同一收纳盒内两个已占格位，在一个事务中更新双方位置并写入记录。
+
+**位置二维码与扫码查看协议：**
+
+首版二维码内容使用短协议：
+
+```text
+MSLOC:<location.full_code>
+```
+
+示例：
+
+```text
+MSLOC:WS.BOX-A.A03
+```
+
+协议语义：
+
+- `MSLOC:` 是位置二维码协议标识。
+- 后缀必须是现有 `locations.full_code`。
+- 二维码绑定容器或格位位置，不绑定物品，不使用 `identifiers` 表。
+- 标签上不打印物品名称、数量或库存状态；这些信息必须扫码后通过 API 查询当前状态。
+- `code/full_code` 创建后不可修改，是保持已打印标签长期有效的前提。
+
+推荐扫码查看直接调用：
+
+```http
+GET /api/locations/resolve-msloc?code=MSLOC:WS.BOX-A.A03
+```
+
+响应按 `kind` 区分：
+
+- `kind=slot`：返回 `location`、所属 `container`、当前 `slot`；`slot.item` 可为空。
+- `kind=container`：返回 `container` 和 `slots`，每个 `slot.item` 可为空。
+- `kind=location`：返回普通 `location` 和 `items`。
+
+示例响应：
+
+```json
+{
+  "kind": "slot",
+  "full_code": "WS.BOX-A.A03",
+  "location": {"full_code": "WS.BOX-A.A03", "is_slot": true},
+  "container": {"full_code": "WS.BOX-A"},
+  "slot": {
+    "location": {"slot_key": "A03"},
+    "item": null
+  }
+}
+```
+
+底层解析流程：
+
+1. 客户端校验内容以 `MSLOC:` 开头，取后缀 `full_code`。
+2. 调用 `GET /api/locations/by-code/{full_code}` 查询位置。
+3. 如果 `is_slot=true`，用返回的 `parent_id` 调用 `GET /api/locations/{parent_id}/board`，在 `slots` 中匹配该格位，读取可为空的 `item`。
+4. 如果 `layout_type` 非空且 `is_slot=false`，调用 `GET /api/locations/{id}/board` 展示容器格位布局。
+5. 如果是普通位置，调用 `GET /api/locations/{id}/items` 展示当前位置物品。
+
+格位扫码结果应保持只读。移动、放入、取出、交换等写操作仍使用既有物品移动和格位交换接口，不属于扫码查看首版流程。
 
 ### 4.5 搜索 (search)
 
@@ -733,6 +793,7 @@ confirm 规则：
 | `INVALID_TOKEN` | 401 | Token 无效或缺失 |
 | `DUPLICATE_CODE` | 400 | 编号重复 |
 | `LOCATION_CODE_EXISTS` | 400 | 位置编号已存在 |
+| `INVALID_MSLOC_CODE` | 400 | 位置二维码协议无效 |
 | `LOCATION_NOT_EMPTY` | 400 | 位置非空，不能删除 |
 | `LOCATION_NOT_CONTAINER` | 400 | 位置不是可视化收纳盒 |
 | `LOCATION_HAS_CHILDREN` | 400 | 位置已有子位置，不能转换为收纳盒 |

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Grid2X2, ListFilter, ListTodo, Plus, SlidersHorizontal, X } from 'lucide-vue-next'
+import { Grid2X2, ListFilter, ListTodo, Plus, QrCode, SlidersHorizontal, X } from 'lucide-vue-next'
 
 import AttributesDialog from '@/components/dialogs/AttributesDialog.vue'
 import DeleteItemDialog from '@/components/dialogs/DeleteItemDialog.vue'
@@ -22,6 +22,7 @@ import HomeDashboard from '@/components/panels/HomeDashboard.vue'
 import InventoryGrid from '@/components/panels/InventoryGrid.vue'
 import InventoryTable from '@/components/panels/InventoryTable.vue'
 import LocationMap from '@/components/panels/LocationMap.vue'
+import LocationLabelManager from '@/components/panels/LocationLabelManager.vue'
 import ManagementHub from '@/components/panels/ManagementHub.vue'
 import QuickEntryPanel from '@/components/panels/QuickEntryPanel.vue'
 import SettingsPanel from '@/components/panels/SettingsPanel.vue'
@@ -32,7 +33,7 @@ import { fetchItems } from '@/api/items'
 import { useInventoryStore } from '@/stores/inventory'
 import type { Item, ItemFormPayload, LocationFormPayload, LocationNode } from '@/types'
 
-type ScreenMode = 'home' | 'inventory' | 'quickEntry' | 'locations' | 'management' | 'categories' | 'backups' | 'settings' | 'extensionSettings' | 'extension'
+type ScreenMode = 'home' | 'inventory' | 'quickEntry' | 'locations' | 'locationLabels' | 'management' | 'categories' | 'backups' | 'settings' | 'extensionSettings' | 'extension'
 
 const store = useInventoryStore()
 const route = useRoute()
@@ -52,7 +53,7 @@ const inventoryView = ref<'list' | 'grid'>('list')
 const searchFocused = ref(false)
 const searchSuggestions = ref<Item[]>([])
 const searchLoading = ref(false)
-let searchTimer: ReturnType<typeof window.setTimeout> | null = null
+let searchTimer: number | null = null
 let searchRequest = 0
 
 const screenMode = computed<ScreenMode>(() => {
@@ -60,6 +61,7 @@ const screenMode = computed<ScreenMode>(() => {
     case 'home': return 'home'
     case 'quick-entry': return 'quickEntry'
     case 'locations': return 'locations'
+    case 'location-labels': return 'locationLabels'
     case 'management': return 'management'
     case 'categories': return 'categories'
     case 'backups': return 'backups'
@@ -230,6 +232,10 @@ function openCreateItem() {
   itemDialog.value = 'create'
 }
 
+function openScan() {
+  void router.push({ name: 'location-scan' })
+}
+
 function openCreateItemInSlot(code: string, label: string) {
   itemTargetLocation.value = { code, label }
   itemDialog.value = 'create'
@@ -249,7 +255,10 @@ async function reloadWithFilters() {
             <BrandMark />
             <div><div class="text-[21px] font-semibold leading-6">工坊物栈</div><div class="text-[12px] text-muted">Maker Stash</div></div>
           </div>
-          <button class="grid h-11 w-11 place-items-center rounded-xl bg-green text-white" title="新增物品" @click="openCreateItem"><Plus :size="20" /></button>
+          <div class="flex gap-2">
+            <button class="grid h-11 w-11 place-items-center rounded-xl border border-line bg-white text-green" title="扫码查看位置" @click="openScan"><QrCode :size="20" /></button>
+            <button class="grid h-11 w-11 place-items-center rounded-xl bg-green text-white" title="新增物品" @click="openCreateItem"><Plus :size="20" /></button>
+          </div>
         </div>
         <div class="relative">
           <ListFilter class="absolute left-3 top-1/2 -translate-y-1/2 text-muted" :size="19" />
@@ -276,6 +285,7 @@ async function reloadWithFilters() {
       <main class="min-h-0 flex-1" :class="screenMode === 'extension' ? 'h-full overflow-hidden pb-16' : 'thin-scrollbar overflow-y-auto pb-20'">
         <div v-if="notice" class="mx-4 mt-4 rounded-xl border px-3 py-2 text-[13px]" :class="notice.type === 'error' ? 'border-red-200 bg-red-50 text-red-700' : 'border-green/20 bg-green/10 text-green'">{{ notice.message }}</div>
         <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
+        <LocationLabelManager v-else-if="screenMode === 'locationLabels'" />
         <HomeDashboard v-else-if="screenMode === 'home'" />
         <QuickEntryPanel v-else-if="screenMode === 'quickEntry'" />
         <ManagementHub v-else-if="screenMode === 'management'" />
@@ -340,6 +350,7 @@ async function reloadWithFilters() {
               <div v-if="!searchLoading && store.query && !searchSuggestions.length" class="px-4 py-3 text-[13px] text-muted">暂无匹配物品</div>
             </div>
           </div>
+          <button class="grid h-[48px] w-[48px] shrink-0 place-items-center rounded-xl border border-line bg-white text-green" title="扫码查看位置" @click="openScan"><QrCode :size="18" /></button>
           <button class="inline-flex h-[48px] shrink-0 items-center gap-2 rounded-xl bg-green px-5 text-[14px] font-medium text-white" @click="openCreateItem"><Plus :size="18" /> 新增物品</button>
         </div>
       </header>
@@ -366,6 +377,7 @@ async function reloadWithFilters() {
         </div>
         <div v-else class="min-h-0 flex-1" :class="screenMode === 'extension' ? 'h-full overflow-hidden' : 'thin-scrollbar overflow-y-auto'">
           <LocationMap v-if="screenMode === 'locations'" @create="(location) => locationDialog = { mode: 'create', location }" @create-in-slot="openCreateItemInSlot" @edit="(location) => locationDialog = { mode: 'edit', location }" @delete="deleteLocation" />
+          <LocationLabelManager v-else-if="screenMode === 'locationLabels'" />
           <HomeDashboard v-else-if="screenMode === 'home'" />
           <QuickEntryPanel v-else-if="screenMode === 'quickEntry'" />
           <ManagementHub v-else-if="screenMode === 'management'" />

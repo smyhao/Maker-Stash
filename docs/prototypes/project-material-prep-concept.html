@@ -1,0 +1,781 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>工坊物栈 · 项目物料准备示意</title>
+  <style>
+    :root {
+      --bg: #f8f5ee;
+      --sidebar: #eee8dc;
+      --surface: #fffdfa;
+      --surface-soft: #f4f1eb;
+      --line: #ded7ca;
+      --line-strong: #cfc5b5;
+      --text: #252722;
+      --muted: #777568;
+      --green: #557c63;
+      --green-soft: #e8f0ea;
+      --red: #c6533f;
+      --red-soft: #f8e7e2;
+      --amber: #a56c28;
+      --amber-soft: #f5ead8;
+      --blue: #416e86;
+      --blue-soft: #e6eef2;
+      --shadow: 0 1px 2px rgba(36, 32, 24, 0.08), 0 8px 24px rgba(36, 32, 24, 0.06);
+      font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 258px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid var(--line);
+      padding: 20px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 30px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      width: 54px;
+      height: 54px;
+      border-radius: 14px;
+      background: #dcc7a5;
+      display: grid;
+      place-items: center;
+      color: #5c5141;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.1;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 10px;
+    }
+
+    .nav-title {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 6px 10px;
+    }
+
+    .nav-item {
+      border: 0;
+      background: transparent;
+      color: #55584f;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 8px;
+      text-align: left;
+      cursor: default;
+    }
+
+    .nav-item.active {
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      width: 22px;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .sync {
+      margin-top: auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      height: 92px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 253, 250, 0.84);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 28px;
+    }
+
+    .search {
+      flex: 1;
+      height: 56px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 18px;
+      color: #9a998f;
+      max-width: 860px;
+    }
+
+    .primary {
+      border: 0;
+      background: var(--green);
+      color: white;
+      border-radius: 10px;
+      height: 48px;
+      padding: 0 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      box-shadow: var(--shadow);
+    }
+
+    .content {
+      padding: 26px 28px 34px;
+      display: grid;
+      gap: 22px;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .title-row h2 {
+      margin: 0;
+      font-size: 32px;
+      line-height: 1.15;
+    }
+
+    .title-row p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    .segmented {
+      border: 1px solid var(--line);
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 4px;
+      display: flex;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .segmented span {
+      padding: 9px 12px;
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .segmented .active {
+      background: var(--green-soft);
+      color: var(--green);
+      font-weight: 700;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .metric {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .metric label {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 12px;
+      font-size: 30px;
+      line-height: 1;
+    }
+
+    .metric.good strong {
+      color: var(--green);
+    }
+
+    .metric.warn strong {
+      color: var(--amber);
+    }
+
+    .metric.bad strong {
+      color: var(--red);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(420px, 1.25fr) minmax(320px, 0.75fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .panel-head h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .panel-head span {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .table {
+      display: grid;
+    }
+
+    .table-row {
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      display: grid;
+      grid-template-columns: 1.35fr 90px 110px 130px;
+      gap: 12px;
+      padding: 15px 20px;
+      text-align: left;
+      align-items: center;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .table-row:last-child {
+      border-bottom: 0;
+    }
+
+    .table-row:hover,
+    .table-row.selected {
+      background: #f8faf7;
+    }
+
+    .item-name {
+      font-weight: 800;
+      font-size: 17px;
+    }
+
+    .item-spec {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .qty {
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .status {
+      justify-self: start;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .status.good {
+      background: var(--green-soft);
+      color: var(--green);
+    }
+
+    .status.warn {
+      background: var(--amber-soft);
+      color: var(--amber);
+    }
+
+    .status.bad {
+      background: var(--red-soft);
+      color: var(--red);
+    }
+
+    .match {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .detail {
+      display: grid;
+      gap: 16px;
+      padding: 20px;
+    }
+
+    .detail-title {
+      display: grid;
+      gap: 6px;
+    }
+
+    .detail-title h3 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .detail-title p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .detail-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--surface-soft);
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .detail-card h4 {
+      margin: 0;
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 88px 1fr;
+      gap: 8px;
+      font-size: 15px;
+      align-items: baseline;
+    }
+
+    .kv span {
+      color: var(--muted);
+    }
+
+    .linkish {
+      color: var(--green);
+      font-weight: 800;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .step {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      min-height: 88px;
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .inventory-link {
+      margin-top: 18px;
+      border: 1px dashed var(--line-strong);
+      border-radius: 8px;
+      padding: 16px;
+      background: #fbfaf6;
+    }
+
+    .inventory-link h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid var(--line);
+      background: white;
+      border-radius: 999px;
+      padding: 7px 10px;
+      color: #5d6258;
+      font-size: 13px;
+    }
+
+    @media (max-width: 980px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .topbar {
+        height: auto;
+        flex-wrap: wrap;
+        padding: 16px;
+      }
+
+      .search {
+        order: 2;
+        flex-basis: 100%;
+        max-width: none;
+      }
+
+      .content {
+        padding: 22px 16px 26px;
+      }
+
+      .title-row,
+      .workspace {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .summary-grid,
+      .flow {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .table-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .summary-grid,
+      .flow {
+        grid-template-columns: 1fr;
+      }
+
+      .title-row h2 {
+        font-size: 28px;
+      }
+
+      .segmented {
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">MS</div>
+        <div>
+          <h1>工坊物栈</h1>
+          <p>Maker Stash</p>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">主要任务</div>
+        <button class="nav-item"><span class="nav-icon">⌂</span>工作台</button>
+        <button class="nav-item"><span class="nav-icon">□</span>库存</button>
+        <button class="nav-item"><span class="nav-icon">⌖</span>位置</button>
+        <button class="nav-item active"><span class="nav-icon">▤</span>项目</button>
+        <button class="nav-item"><span class="nav-icon">⚙</span>管理</button>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-title">项目扩展</div>
+        <button class="nav-item"><span class="nav-icon">↥</span>BOM 导入</button>
+        <button class="nav-item"><span class="nav-icon">↧</span>订单导入</button>
+      </div>
+
+      <div class="sync">● 数据已同步</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="search">≡ 搜索项目、物品、位置、属性...</div>
+        <button class="primary">＋ 新建项目</button>
+      </header>
+
+      <section class="content">
+        <div class="title-row">
+          <div>
+            <h2>ESP32 温湿度节点</h2>
+            <p>项目界面独立管理需求、匹配、缺料和拣料，但所有结果都引用库存物品与位置。</p>
+          </div>
+          <div class="segmented" aria-label="项目视图">
+            <span class="active">准备概览</span>
+            <span>需求清单</span>
+            <span>拣料清单</span>
+            <span>记录</span>
+          </div>
+        </div>
+
+        <div class="summary-grid">
+          <div class="metric good">
+            <label>已满足</label>
+            <strong>6</strong>
+          </div>
+          <div class="metric warn">
+            <label>数量不足</label>
+            <strong>2</strong>
+          </div>
+          <div class="metric bad">
+            <label>未匹配</label>
+            <strong>1</strong>
+          </div>
+          <div class="metric">
+            <label>待拣料</label>
+            <strong>8</strong>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h3>项目备料流程</h3>
+            <span>清单来源可以是手动、CSV、BOM 或订单扩展</span>
+          </div>
+          <div class="detail">
+            <div class="flow">
+              <div class="step">
+                <b>1. 项目需求</b>
+                <p>描述项目需要什么，不直接等同库存物品。</p>
+              </div>
+              <div class="step">
+                <b>2. 库存匹配</b>
+                <p>用名称、属性、归一化值匹配已有物品。</p>
+              </div>
+              <div class="step">
+                <b>3. 缺料判断</b>
+                <p>比较需求数量和可用数量，标出不足项。</p>
+              </div>
+              <div class="step">
+                <b>4. 生成拣料</b>
+                <p>按位置排序，告诉用户去哪个格子拿。</p>
+              </div>
+              <div class="step">
+                <b>5. 准备状态</b>
+                <p>先标记已备齐，项目完成后再决定消耗或归还。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace">
+          <section class="panel">
+            <div class="panel-head">
+              <h3>需求清单与库存匹配</h3>
+              <span>点击一行查看右侧详情</span>
+            </div>
+            <div class="table" id="requirements"></div>
+          </section>
+
+          <aside class="panel">
+            <div class="panel-head">
+              <h3>匹配详情</h3>
+              <span id="detail-status">已满足</span>
+            </div>
+            <div class="detail" id="detail"></div>
+          </aside>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>拣料清单</h3>
+            <span>项目引用库存位置，而不是复制一套项目物品库</span>
+          </div>
+          <div class="detail">
+            <div class="inventory-link">
+              <h3>共享库存底座</h3>
+              <div class="chips">
+                <span class="chip">Item 物品档案</span>
+                <span class="chip">Location 位置与格位</span>
+                <span class="chip">Attribute 属性与归一化</span>
+                <span class="chip">Quantity 数量</span>
+                <span class="chip">MSLOC 格位二维码</span>
+                <span class="chip">Search 搜索匹配</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const rows = [
+      {
+        name: "10k 电阻",
+        spec: "0603 · 1% · 1/10W",
+        need: "10 个",
+        stock: "120 个",
+        status: "已满足",
+        tone: "good",
+        match: "RES-000018",
+        location: "箱子2 · A03",
+        action: "加入拣料清单，按位置取 10 个。"
+      },
+      {
+        name: "0.1uF 电容",
+        spec: "0603 · 50V · X7R",
+        need: "8 个",
+        stock: "7 个",
+        status: "数量不足",
+        tone: "warn",
+        match: "CAP-000001",
+        location: "箱子2 · A04",
+        action: "可先取 7 个，缺 1 个进入采购/待补清单。"
+      },
+      {
+        name: "ESP32 开发板",
+        spec: "ESP32-WROOM · 4MB Flash · USB-C",
+        need: "1 个",
+        stock: "2 个",
+        status: "已满足",
+        tone: "good",
+        match: "MCU-000001",
+        location: "箱子2 · A02",
+        action: "加入拣料清单，扫码确认已准备。"
+      },
+      {
+        name: "SHT31 温湿度模块",
+        spec: "I2C · 3.3V · 模块",
+        need: "1 个",
+        stock: "0 个",
+        status: "未匹配",
+        tone: "bad",
+        match: "无匹配库存",
+        location: "无位置",
+        action: "保持为缺料项，后续可从订单导入或手动入库。"
+      }
+    ];
+
+    const list = document.querySelector("#requirements");
+    const detail = document.querySelector("#detail");
+    const detailStatus = document.querySelector("#detail-status");
+
+    function renderRows(selectedIndex) {
+      list.innerHTML = "";
+      rows.forEach((row, index) => {
+        const button = document.createElement("button");
+        button.className = `table-row ${index === selectedIndex ? "selected" : ""}`;
+        button.innerHTML = `
+          <div>
+            <div class="item-name">${row.name}</div>
+            <div class="item-spec">${row.spec}</div>
+          </div>
+          <div class="qty">需要 ${row.need}</div>
+          <div class="qty">库存 ${row.stock}</div>
+          <span class="status ${row.tone}">${row.status}</span>
+        `;
+        button.addEventListener("click", () => selectRow(index));
+        list.appendChild(button);
+      });
+    }
+
+    function selectRow(index) {
+      const row = rows[index];
+      renderRows(index);
+      detailStatus.textContent = row.status;
+      detail.innerHTML = `
+        <div class="detail-title">
+          <h3>${row.name}</h3>
+          <p>${row.spec}</p>
+        </div>
+
+        <div class="detail-card">
+          <h4>项目需求</h4>
+          <div class="kv"><span>需要数量</span><b>${row.need}</b></div>
+          <div class="kv"><span>准备状态</span><b>${row.status}</b></div>
+        </div>
+
+        <div class="detail-card">
+          <h4>匹配到库存</h4>
+          <div class="kv"><span>物品编号</span><b class="linkish">${row.match}</b></div>
+          <div class="kv"><span>库存数量</span><b>${row.stock}</b></div>
+          <div class="kv"><span>所在位置</span><b>${row.location}</b></div>
+        </div>
+
+        <div class="detail-card">
+          <h4>下一步动作</h4>
+          <p style="margin:0;line-height:1.6;color:#55584f;">${row.action}</p>
+        </div>
+      `;
+    }
+
+    selectRow(0);
+  </script>
+</body>
+</html>

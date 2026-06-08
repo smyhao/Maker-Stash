@@ -44,6 +44,7 @@
 - **可视化收纳盒**：普通位置可配置为 `grid` 或 `row` 容器，自动生成格位（如 `A01...C05`），用于映射真实分格盒/抽屉
 - 收纳盒支持外观颜色，用于辅助识别真实容器；颜色可使用预设名或 `#RRGGBB` RGB 编号
 - 位置树可视化，按位置筛选物品；桌面端支持格位详情、选择已有物品放入空格、整理移动和确认交换，移动端只读定位
+- **位置二维码标签**：二维码绑定位置/格位而不是物品，内容固定为 `MSLOC:<location.full_code>`；管理页可生成 A4 标签，手机端可扫码或手动粘贴查看当前位置内容
 
 ### 搜索
 
@@ -476,9 +477,22 @@ stash system info
 | POST | `/api/locations` | 新增位置 |
 | GET | `/api/locations/{id}` | 位置详情 |
 | GET | `/api/locations/{id}/items` | 位置下物品（按 ID） |
+| GET | `/api/locations/resolve-msloc?code=MSLOC:<full_code>` | 解析位置二维码并返回只读查看上下文 |
 | GET | `/api/locations/by-code/{full_code}` | 按 full_code 查位置 |
 | GET | `/api/locations/by-code/{full_code}/items` | 位置下物品（按 code） |
+| POST | `/api/locations/containers` | 创建可视化收纳盒并生成格位 |
+| POST/PATCH | `/api/locations/{id}/container` | 转换/调整收纳盒布局 |
+| GET | `/api/locations/{id}/board` | 收纳盒格位画布及占用摘要 |
+| POST | `/api/locations/{id}/swap` | 同一收纳盒内交换已占格位 |
 | PATCH/DELETE | `/api/locations/{id}` | 修改/删除位置 |
+
+**位置二维码与扫码查看**
+
+- 二维码协议固定为 `MSLOC:<location.full_code>`，例如 `MSLOC:WS.BOX-A.A03`。
+- 二维码绑定的是容器或格位位置，不绑定物品；物品移动后不需要重新打印标签。
+- 扫码查看优先调用 `GET /api/locations/resolve-msloc?code=MSLOC:<full_code>`，返回 `kind=slot/container/location` 以及对应只读上下文。
+- 底层查询仍可使用 `/api/locations/by-code/{full_code}`、`/api/locations/{id}/board` 和 `/api/locations/{id}/items` 组合。
+- Web 入口：管理 → 位置二维码与标签；位置页也提供容器、全部格位和单格标签打印入口；手机顶部操作区提供扫码入口。
 
 **搜索**
 

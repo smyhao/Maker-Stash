@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { ArrowDownToLine, Boxes, ChevronRight, Container, Grid2X2, MapPinned, Paperclip, Pencil, Plus, ScrollText, Trash2, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ArrowDownToLine, Boxes, ChevronRight, Container, Grid2X2, MapPinned, Paperclip, Pencil, Plus, Printer, ScrollText, Trash2, X } from 'lucide-vue-next'
 
 import { convertLocationToContainer, fetchContainerBoard, fetchLocationItems, swapContainerSlots } from '@/api/catalog'
 import { downloadAttachmentFile, fetchItem, fetchItemAttachments, fetchItemAttributes, fetchItems, moveItem } from '@/api/items'
@@ -11,6 +12,7 @@ import { useInventoryStore } from '@/stores/inventory'
 import type { Attachment, ContainerBoard, ContainerBoardSlot, ContainerCreatePayload, ContainerLayoutPayload, Item, ItemAttribute, LocationNode, SlotAssignment } from '@/types'
 
 const store = useInventoryStore()
+const router = useRouter()
 const emit = defineEmits<{
   create: [parent: (LocationNode & { depth?: number }) | null]
   createInSlot: [locationCode: string, locationLabel: string]
@@ -165,6 +167,11 @@ function boardStyle(location: LocationNode) {
 function openContainer(mode: 'create' | 'convert' | 'edit', location: LocationNode | null) {
   dialogLocation.value = location
   containerDialog.value = mode
+}
+
+function printLocationLabels(location: LocationNode, scope: 'container' | 'slots' | 'all' = 'container') {
+  const route = router.resolve({ name: 'location-label-print', query: { id: String(location.id), scope } })
+  window.open(route.href, '_blank')
 }
 
 async function createContainer(payload: ContainerCreatePayload) {
@@ -464,6 +471,12 @@ async function placePickedItem(item: Item) {
               <p class="mt-1 text-[13px] text-muted">{{ board.container.full_code }} · {{ containerLabel(board.container) }} · {{ occupancy }} / {{ board.slots.length }} 已占用</p>
             </div>
             <div class="hidden gap-2 lg:flex">
+              <button class="inline-flex h-9 items-center gap-2 rounded-xl border border-line px-3 text-[13px]" @click="printLocationLabels(board.container)">
+                <Printer :size="15" />容器标签
+              </button>
+              <button class="inline-flex h-9 items-center gap-2 rounded-xl border border-line px-3 text-[13px]" @click="printLocationLabels(board.container, 'all')">
+                <Printer :size="15" />全部格位
+              </button>
               <button class="h-9 rounded-xl border px-3 text-[13px]" :class="arranging ? 'border-green bg-green/10 text-green' : 'border-line'" @click="startArrange()">
                 {{ arranging ? '整理中' : '整理模式' }}
               </button>
@@ -506,6 +519,9 @@ async function placePickedItem(item: Item) {
               <p class="mt-1 text-[13px] text-muted">{{ activeLocation.full_code }} · {{ activeLocation.type || '普通位置' }}</p>
             </div>
             <div class="hidden gap-2 lg:flex">
+              <button class="inline-flex h-9 items-center gap-2 rounded-xl border border-line px-3 text-[13px]" @click="printLocationLabels(activeLocation)">
+                <Printer :size="15" />打印标签
+              </button>
               <button class="h-9 rounded-xl border border-line px-3 text-[13px]" @click="openContainer('convert', activeLocation)">配置为收纳盒</button>
               <button class="grid h-9 w-9 place-items-center rounded-xl border border-line text-green" @click="emit('edit', activeLocation)"><Pencil :size="15" /></button>
               <button class="grid h-9 w-9 place-items-center rounded-xl border border-red-200 text-red-600" @click="emit('delete', activeLocation)"><Trash2 :size="15" /></button>
@@ -551,6 +567,7 @@ async function placePickedItem(item: Item) {
               </div>
             </div>
             <div v-else class="mt-2 text-[14px] text-muted">空格位</div>
+            <button class="mt-3 h-9 w-full rounded-xl border border-line text-[13px] text-green" @click="printLocationLabels(actionSlot.location)">打印此格标签</button>
           </div>
           <template v-if="!arranging && selectedSlot?.item">
             <div v-if="slotDetailLoading" class="mt-4 rounded-xl border border-line px-3 py-4 text-[13px] text-muted">正在加载物品详情...</div>

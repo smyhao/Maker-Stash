@@ -46,6 +46,7 @@ Idempotency-Key: extension-name-operation-unique-id
 可以直接调用基础 API 的场景：
 
 - 查询物品、分类、位置、标签、附件、统计信息。
+- 解析位置二维码并只读查看容器/格位当前内容。
 - 单个物品的低风险写入，例如编辑名称、移动一次位置、上传一个附件。
 - 单步写入仍需提供幂等键和来源字段。
 
@@ -55,6 +56,47 @@ Idempotency-Key: extension-name-operation-unique-id
 - Agent 自动执行的库存、位置或附件变更。
 - 任何中途失败后不应留下半成品的操作。
 - 需要先展示风险、失败项或预览结果再确认的操作。
+
+## 位置二维码与扫码查看
+
+主干首版位置二维码协议固定为：
+
+```text
+MSLOC:<location.full_code>
+```
+
+示例：
+
+```text
+MSLOC:WS.BOX-A.A03
+```
+
+扩展或外部扫码模块应遵守：
+
+- 二维码绑定的是容器或格位位置，不是物品。
+- 不要把 `MSLOC:` 写入物品 `identifiers` 表；该表用于物品外部标识，位置二维码以 `locations.full_code` 为权威身份。
+- 不要在标签或扫码结果中缓存物品名称、数量或库存状态；这些信息会随物品移动变化，必须扫码后实时查询。
+- 首版扫码查看只读。移动、放入、取出和交换格位属于写操作，应走物品移动接口、格位交换接口，批量或 Agent 场景优先走 workflow。
+
+推荐直接调用主干解析接口：
+
+```http
+GET /api/locations/resolve-msloc?code=MSLOC:WS.BOX-A.A03
+```
+
+响应按 `kind` 区分：
+
+- `slot`：返回 `location`、所属 `container`、当前 `slot`，其中 `slot.item` 可为空。
+- `container`：返回 `container` 和 `slots`，每个 `slot.item` 可为空。
+- `location`：返回普通 `location` 和 `items`。
+
+底层解析流程：
+
+1. 校验原始内容以 `MSLOC:` 开头，取后缀 `full_code`。
+2. 调用 `GET /api/locations/by-code/{full_code}`。
+3. 若返回 `is_slot=true`，调用 `GET /api/locations/{parent_id}/board`，在 `slots` 中找到该格位并读取可为空的 `item`。
+4. 若返回 `layout_type` 非空且 `is_slot=false`，调用 `GET /api/locations/{id}/board` 展示容器格位状态。
+5. 若返回普通位置，调用 `GET /api/locations/{id}/items` 展示当前位置物品。
 
 ## 能力发现
 
@@ -165,7 +207,7 @@ tools.menu
 - 认证与权限：`INVALID_TOKEN`
 - 参数校验：`VALIDATION_ERROR`
 - 资源不存在：`ITEM_NOT_FOUND`、`CATEGORY_NOT_FOUND`、`LOCATION_NOT_FOUND`、`BACKUP_NOT_FOUND`、`TASK_NOT_FOUND`、`PLAN_NOT_FOUND`
-- 业务规则：`NEGATIVE_QUANTITY_NOT_ALLOWED`、`ARCHIVED_ITEM_MOVE_FORBIDDEN`、`ARCHIVED_ITEM_QUANTITY_FORBIDDEN`、`SLOT_OCCUPIED`
+- 业务规则：`INVALID_MSLOC_CODE`、`NEGATIVE_QUANTITY_NOT_ALLOWED`、`ARCHIVED_ITEM_MOVE_FORBIDDEN`、`ARCHIVED_ITEM_QUANTITY_FORBIDDEN`、`SLOT_OCCUPIED`
 - 上传与附件：`UPLOAD_TOO_LARGE`、`UPLOAD_FAILED`、`ATTACHMENT_NOT_FOUND`
 - 备份与任务：`BACKUP_IN_PROGRESS`
 - Workflow：`UNSUPPORTED_WORKFLOW_TYPE`、`PLAN_CONFIRM_TOKEN_INVALID`、`PLAN_HAS_FAILURES`

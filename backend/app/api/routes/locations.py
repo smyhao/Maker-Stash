@@ -86,18 +86,32 @@ def swap_container_slots(location_id: int, payload: SlotSwap, db: Session = Depe
     )
 
 
-@router.get("/{location_id}")
-def get_location(location_id: int, db: Session = Depends(get_db)) -> dict:
-    location = LocationService(db).get(location_id)
-    return ok(LocationRead.model_validate(location).model_dump())
-
-
-@router.get("/{location_id}/items")
-def get_location_items_by_id(location_id: int, db: Session = Depends(get_db)) -> dict:
-    location = LocationService(db).get(location_id)
-    items = ItemService(db).list(location=location.full_code, page_size=10000)
-    data = [ItemRead.model_validate(item).model_dump() for item in items]
-    return ok({"items": data})
+@router.get("/resolve-msloc")
+def resolve_msloc(code: str, db: Session = Depends(get_db)) -> dict:
+    resolved = LocationService(db).resolve_msloc(code)
+    data = {
+        "kind": resolved["kind"],
+        "full_code": resolved["full_code"],
+        "location": LocationRead.model_validate(resolved["location"]).model_dump(),
+    }
+    if resolved["kind"] == "slot":
+        data["container"] = LocationRead.model_validate(resolved["container"]).model_dump()
+        data["slot"] = {
+            "location": LocationRead.model_validate(resolved["slot"]["location"]).model_dump(),
+            "item": ItemRead.model_validate(resolved["slot"]["item"]).model_dump() if resolved["slot"]["item"] else None,
+        }
+    elif resolved["kind"] == "container":
+        data["container"] = LocationRead.model_validate(resolved["container"]).model_dump()
+        data["slots"] = [
+            {
+                "location": LocationRead.model_validate(slot["location"]).model_dump(),
+                "item": ItemRead.model_validate(slot["item"]).model_dump() if slot["item"] else None,
+            }
+            for slot in resolved["slots"]
+        ]
+    else:
+        data["items"] = [ItemRead.model_validate(item).model_dump() for item in resolved["items"]]
+    return ok(data)
 
 
 @router.get("/by-code/{full_code}")
@@ -109,6 +123,20 @@ def get_location_by_code(full_code: str, db: Session = Depends(get_db)) -> dict:
 @router.get("/by-code/{full_code}/items")
 def get_location_items(full_code: str, db: Session = Depends(get_db)) -> dict:
     items = ItemService(db).list(location=full_code, page_size=10000)
+    data = [ItemRead.model_validate(item).model_dump() for item in items]
+    return ok({"items": data})
+
+
+@router.get("/{location_id}")
+def get_location(location_id: int, db: Session = Depends(get_db)) -> dict:
+    location = LocationService(db).get(location_id)
+    return ok(LocationRead.model_validate(location).model_dump())
+
+
+@router.get("/{location_id}/items")
+def get_location_items_by_id(location_id: int, db: Session = Depends(get_db)) -> dict:
+    location = LocationService(db).get(location_id)
+    items = ItemService(db).list(location=location.full_code, page_size=10000)
     data = [ItemRead.model_validate(item).model_dump() for item in items]
     return ok({"items": data})
 

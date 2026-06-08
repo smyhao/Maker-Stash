@@ -103,6 +103,28 @@ export interface ContainerBoard {
   slots: ContainerBoardSlot[]
 }
 
+export type MslocResolution =
+  | {
+      kind: 'slot'
+      full_code: string
+      location: LocationNode
+      container: LocationNode
+      slot: ContainerBoardSlot
+    }
+  | {
+      kind: 'container'
+      full_code: string
+      location: LocationNode
+      container: LocationNode
+      slots: ContainerBoardSlot[]
+    }
+  | {
+      kind: 'location'
+      full_code: string
+      location: LocationNode
+      items: Item[]
+    }
+
 export interface ItemFormPayload {
   name: string
   category?: string | number | null

@@ -4,12 +4,14 @@ declare module 'lucide-vue-next' {
   export type LucideIcon = FunctionalComponent<SVGAttributes & { size?: number | string; strokeWidth?: number | string }>
 
   export const ArrowDownToLine: LucideIcon
+  export const ArrowLeft: LucideIcon
   export const ArrowUpFromLine: LucideIcon
   export const AlertTriangle: LucideIcon
   export const Box: LucideIcon
   export const Boxes: LucideIcon
   export const Briefcase: LucideIcon
   export const Cable: LucideIcon
+  export const Camera: LucideIcon
   export const ChevronDown: LucideIcon
   export const ChevronRight: LucideIcon
   export const Check: LucideIcon
@@ -34,6 +36,8 @@ declare module 'lucide-vue-next' {
   export const Paperclip: LucideIcon
   export const Pencil: LucideIcon
   export const Plus: LucideIcon
+  export const Printer: LucideIcon
+  export const QrCode: LucideIcon
   export const RefreshCw: LucideIcon
   export const ScanLine: LucideIcon
   export const Search: LucideIcon

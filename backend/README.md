@@ -173,6 +173,8 @@ stash search PLA --json
 - 格位是自动生成的叶子位置，不在普通 `/locations/tree` 中逐个展开；通过专用格位画布接口读取。
 - 首版一个格位最多绑定一条未归档物品记录。移动到空格位使用物品移动接口；前端空格位可搜索并选择已有物品放入。已占格位之间交换必须使用收纳盒交换接口。
 - 物品响应中的 `location_display` 可直接用于展示「透明分格盒 A · B03」这类结构化位置文本。
+- 位置二维码协议为 `MSLOC:<location.full_code>`，绑定容器或格位位置，不绑定物品。扫码查看优先调用 `/api/locations/resolve-msloc?code=MSLOC:<full_code>`，返回容器、格位或普通位置的只读上下文；底层仍可通过 `/api/locations/by-code/{full_code}` 和 `/api/locations/{id}/board` 组合查询。
+- Web 前端在「管理 → 位置二维码与标签」提供 A4 标签打印；位置页提供当前容器、全部格位和单格标签打印；手机端顶部扫码入口支持摄像头扫码和手动粘贴。
 
 ## 封面与资料附件
 

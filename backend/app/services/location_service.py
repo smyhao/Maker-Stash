@@ -206,6 +206,56 @@ class LocationService:
             "slots": [{"location": slot, "item": item_by_location.get(slot.id)} for slot in slots],
         }
 
+    def resolve_msloc(self, code: str) -> dict:
+        text = code.strip()
+        prefix = "MSLOC:"
+        if not text.startswith(prefix):
+            raise AppError("INVALID_MSLOC_CODE", "位置二维码内容必须以 MSLOC: 开头")
+        full_code = text[len(prefix):].strip()
+        if not full_code:
+            raise AppError("INVALID_MSLOC_CODE", "位置二维码缺少位置编号")
+
+        location = self.get_by_code(full_code)
+        if location.is_slot:
+            if location.parent_id is None:
+                raise AppError("LOCATION_NOT_CONTAINER", "格位缺少所属收纳盒")
+            board = self.board(location.parent_id)
+            slot = next(
+                (entry for entry in board["slots"] if entry["location"].id == location.id),
+                None,
+            )
+            return {
+                "kind": "slot",
+                "full_code": full_code,
+                "location": location,
+                "container": board["container"],
+                "slot": slot,
+            }
+
+        if location.layout_type:
+            board = self.board(location.id)
+            return {
+                "kind": "container",
+                "full_code": full_code,
+                "location": location,
+                "container": board["container"],
+                "slots": board["slots"],
+            }
+
+        items = list(
+            self.db.scalars(
+                select(Item)
+                .where(Item.location_id == location.id, Item.is_archived.is_(False))
+                .order_by(Item.updated_at.desc(), Item.id.desc())
+            )
+        )
+        return {
+            "kind": "location",
+            "full_code": full_code,
+            "location": location,
+            "items": items,
+        }
+
     def ensure_slot_available(self, location: Location, *, item_id: int | None = None) -> None:
         if not location.is_slot:
             return

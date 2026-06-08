@@ -1089,6 +1089,56 @@ def test_location_items_by_id() -> None:
     assert items[0]["location_id"] == loc["id"]
 
 
+def test_location_lookup_by_full_code_supports_slots() -> None:
+    client = TestClient(create_app())
+
+    container = client.post(
+        "/api/locations/containers",
+        json={"name": "扫码盒", "code": "SCAN", "parent_code": "WS", "layout_type": "row", "layout_columns": 2},
+    ).json()["data"]
+
+    container_lookup = client.get("/api/locations/by-code/WS.SCAN")
+    assert container_lookup.status_code == 200
+    assert container_lookup.json()["data"]["id"] == container["id"]
+
+    slot_lookup = client.get("/api/locations/by-code/WS.SCAN.01")
+    assert slot_lookup.status_code == 200
+    slot = slot_lookup.json()["data"]
+    assert slot["is_slot"] is True
+    assert slot["slot_key"] == "01"
+
+
+def test_resolve_msloc_returns_readonly_location_context() -> None:
+    client = TestClient(create_app())
+
+    container = client.post(
+        "/api/locations/containers",
+        json={"name": "二维码盒", "code": "QRBOX", "parent_code": "WS", "layout_type": "row", "layout_columns": 2},
+    ).json()["data"]
+    item = client.post(
+        "/api/items",
+        json={"name": "扫码物品", "category": "tools", "location_code": "WS.QRBOX.01"},
+    ).json()["data"]
+
+    slot_response = client.get("/api/locations/resolve-msloc", params={"code": "MSLOC:WS.QRBOX.01"})
+    assert slot_response.status_code == 200
+    slot_data = slot_response.json()["data"]
+    assert slot_data["kind"] == "slot"
+    assert slot_data["location"]["full_code"] == "WS.QRBOX.01"
+    assert slot_data["container"]["id"] == container["id"]
+    assert slot_data["slot"]["item"]["code"] == item["code"]
+
+    container_response = client.get("/api/locations/resolve-msloc", params={"code": "MSLOC:WS.QRBOX"})
+    assert container_response.status_code == 200
+    container_data = container_response.json()["data"]
+    assert container_data["kind"] == "container"
+    assert len(container_data["slots"]) == 2
+
+    invalid_response = client.get("/api/locations/resolve-msloc", params={"code": "WS.QRBOX.01"})
+    assert invalid_response.status_code == 400
+    assert invalid_response.json()["error"]["code"] == "INVALID_MSLOC_CODE"
+
+
 def test_visual_container_creates_slots_and_hides_them_from_tree() -> None:
     client = TestClient(create_app())
 
