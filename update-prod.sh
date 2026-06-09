@@ -42,6 +42,20 @@ stop_development_processes() {
   pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/@esbuild" 2>/dev/null || true
 }
 
+wait_for_frontend() {
+  if ! command -v curl >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    if curl -fsS "http://127.0.0.1:$BACKEND_PORT/" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 echo "[update] pulling latest code..."
 git pull --ff-only
 
@@ -74,14 +88,11 @@ else
   nohup "$PYTHON" start.py --config start.toml --skip-frontend > "$LOG_FILE" 2>&1 &
   PID=$!
 fi
-sleep 2
 
-if command -v curl >/dev/null 2>&1; then
-  if curl -fsS "http://127.0.0.1:$BACKEND_PORT/" >/dev/null; then
-    echo "[ok] frontend is available at http://127.0.0.1:$BACKEND_PORT/"
-  else
-    echo "[warn] service started but frontend check failed; inspect $LOG_FILE"
-  fi
+if wait_for_frontend; then
+  echo "[ok] frontend is available at http://127.0.0.1:$BACKEND_PORT/"
+else
+  echo "[warn] service started but frontend check failed; inspect $LOG_FILE"
 fi
 
 echo "[ok] production service started, pid=$PID"
