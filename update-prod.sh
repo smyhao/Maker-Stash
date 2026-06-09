@@ -24,7 +24,23 @@ PY
 
 LOG_DIR=".codex-runtime"
 LOG_FILE="$LOG_DIR/maker-stash-production.log"
+SERVICE_NAME="maker-stash.service"
 mkdir -p "$LOG_DIR"
+
+run_privileged() {
+  if [ "$(id -u)" -eq 0 ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+stop_development_processes() {
+  pkill -TERM -f "$SCRIPT_DIR/start.py" 2>/dev/null || true
+  pkill -TERM -f "uvicorn app.main:app.*--port $BACKEND_PORT" 2>/dev/null || true
+  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/.bin/vite" 2>/dev/null || true
+  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/@esbuild" 2>/dev/null || true
+}
 
 echo "[update] pulling latest code..."
 git pull --ff-only
@@ -41,23 +57,17 @@ echo "[update] building frontend dist..."
   npm run build
 )
 
-if systemctl list-unit-files maker-stash.service >/dev/null 2>&1; then
-  echo "[update] restarting maker-stash.service..."
-  sudo systemctl stop maker-stash.service || true
-  pkill -TERM -f "$SCRIPT_DIR/start.py" 2>/dev/null || true
-  pkill -TERM -f "uvicorn app.main:app.*--port $BACKEND_PORT" 2>/dev/null || true
-  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/.bin/vite" 2>/dev/null || true
-  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/@esbuild" 2>/dev/null || true
+if systemctl list-unit-files "$SERVICE_NAME" >/dev/null 2>&1; then
+  echo "[update] restarting $SERVICE_NAME..."
+  run_privileged systemctl stop "$SERVICE_NAME" || true
+  stop_development_processes
   sleep 2
-  sudo systemctl daemon-reload
-  sudo systemctl restart maker-stash.service
-  PID=$(systemctl show -p MainPID --value maker-stash.service)
+  run_privileged systemctl daemon-reload
+  run_privileged systemctl restart "$SERVICE_NAME"
+  PID=$(systemctl show -p MainPID --value "$SERVICE_NAME")
 else
   echo "[update] stopping old Maker Stash processes..."
-  pkill -TERM -f "$SCRIPT_DIR/start.py" 2>/dev/null || true
-  pkill -TERM -f "uvicorn app.main:app.*--port $BACKEND_PORT" 2>/dev/null || true
-  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/.bin/vite" 2>/dev/null || true
-  pkill -TERM -f "$SCRIPT_DIR/frontend/node_modules/@esbuild" 2>/dev/null || true
+  stop_development_processes
   sleep 2
 
   echo "[update] starting production backend on port $BACKEND_PORT..."
