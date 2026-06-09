@@ -7,7 +7,7 @@ import { useInventoryStore } from '@/stores/inventory'
 const inventory = useInventoryStore()
 
 onMounted(() => {
-  void inventory.bootstrap()
+  if (!inventory.initialized && !inventory.loading) void inventory.bootstrap()
 })
 </script>
 

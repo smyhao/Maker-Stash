@@ -84,12 +84,29 @@ watch(
   () => route.name,
   (name) => {
     const routeName = String(name || 'home')
-    if (routeName !== 'locations' && store.activeLocationCode) store.setLocation(null)
-    store.setFavoriteOnly(routeName === 'favorites')
-    store.setRestockOnly(routeName === 'restock')
-    store.setLowOnly(false)
+    let filtersChanged = false
+    const nextLocationCode = routeName === 'locations' ? store.activeLocationCode : null
+    const nextFavoriteOnly = routeName === 'favorites'
+    const nextRestockOnly = routeName === 'restock'
+
+    if (store.activeLocationCode !== nextLocationCode) {
+      store.setLocation(nextLocationCode)
+      filtersChanged = true
+    }
+    if (store.favoriteOnly !== nextFavoriteOnly) {
+      store.setFavoriteOnly(nextFavoriteOnly)
+      filtersChanged = true
+    }
+    if (store.restockOnly !== nextRestockOnly) {
+      store.setRestockOnly(nextRestockOnly)
+      filtersChanged = true
+    }
+    if (store.lowOnly) {
+      store.setLowOnly(false)
+      filtersChanged = true
+    }
     mobileDetailOpen.value = false
-    if ((store.items.length || store.categories.length) && routeName !== 'settings') void store.loadItems()
+    if (filtersChanged && (store.items.length || store.categories.length)) void store.loadItems()
   },
   { immediate: true },
 )

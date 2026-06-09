@@ -47,6 +47,7 @@ interface InventoryState {
   total: number
   page: number
   pageSize: number
+  initialized: boolean
   loading: boolean
   error: string | null
   query: string
@@ -71,6 +72,7 @@ export const useInventoryStore = defineStore('inventory', {
     total: 0,
     page: 1,
     pageSize: 10,
+    initialized: false,
     loading: false,
     error: null,
     query: '',
@@ -162,6 +164,7 @@ export const useInventoryStore = defineStore('inventory', {
         this.error = error instanceof Error ? error.message : '无法连接后端，已显示演示数据'
         this.useDemoData()
       } finally {
+        this.initialized = true
         this.loading = false
       }
     },

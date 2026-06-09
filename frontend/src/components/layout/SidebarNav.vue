@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { Boxes, Heart, Home, ListTodo, MapPinned, PackagePlus, Settings, Wrench } from 'lucide-vue-next'
 
 import { EXTENSIONS_CHANGED_EVENT, fetchExtensions } from '@/api/extensions'
@@ -8,7 +7,6 @@ import { useInventoryStore } from '@/stores/inventory'
 import type { ExtensionManifest } from '@/types'
 
 const store = useInventoryStore()
-const route = useRoute()
 const extensions = ref<ExtensionManifest[]>([])
 const restockCount = computed(() => store.stats?.restock_count ?? 0)
 const entries = [
@@ -41,7 +39,6 @@ onMounted(() => {
   window.addEventListener(EXTENSIONS_CHANGED_EVENT, loadExtensions)
 })
 onBeforeUnmount(() => window.removeEventListener(EXTENSIONS_CHANGED_EVENT, loadExtensions))
-watch(() => route.fullPath, loadExtensions)
 </script>
 
 <template>
