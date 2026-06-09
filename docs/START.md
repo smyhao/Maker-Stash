@@ -55,9 +55,9 @@ no_browser = false
 
 启动器默认读取项目根目录的 `start.toml`。命令行参数优先级更高，例如 `python start.py --backend-port 8010` 会覆盖配置文件里的 `backend_port`。
 
-## Orange Pi / 局域网访问
+## Orange Pi / 局域网开发
 
-部署到 Orange Pi Zero 3 等局域网设备时，用 `--lan` 让后端和前端监听所有网卡：
+在 Orange Pi Zero 3 等局域网设备上临时开发或调试时，用 `--lan` 让后端和 Vite 前端监听所有网卡：
 
 ```bash
 python start.py --lan --no-browser
@@ -86,6 +86,41 @@ CORS_ALLOWED_ORIGINS=http://192.168.1.23:5173
 ```
 
 不要在公网直接暴露开发服务；至少保留 API Token，并优先只在可信局域网内开放端口。
+
+## Orange Pi 生产部署
+
+生产部署不运行 Vite。先构建 `frontend/dist`，再让 FastAPI 后端直接托管静态前端和 `/api`。项目根目录准备好 `start.toml` 后执行：
+
+```bash
+chmod +x ./start-prod.sh ./update-prod.sh
+cd frontend && npm run build && cd ..
+./start-prod.sh
+```
+
+生产模式只监听后端端口，例如：
+
+```text
+http://<OrangePi局域网IP>:8000
+```
+
+如果 `start.toml` 设置了其他 `backend_port`，访问对应端口。正常生产进程中应该只看到 `uvicorn`，不应该看到 `vite` 或 `esbuild`。
+
+后续在部署端快速更新：
+
+```bash
+cd /opt/Maker-Stash
+./update-prod.sh
+```
+
+`update-prod.sh` 会按顺序执行：
+
+- `git pull --ff-only`
+- 后端数据库迁移
+- `npm run build`
+- 如果存在 `maker-stash.service`，通过 systemd 重启生产服务
+- 如果没有 systemd 服务，停止旧的 `start.py` / `uvicorn` / Vite 开发服务并后台启动 `start.py --skip-frontend`
+
+生产服务日志写入 `.codex-runtime/maker-stash-production.log`。
 
 ## 常用参数
 

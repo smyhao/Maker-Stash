@@ -253,13 +253,30 @@ python start.py
 
 首次使用在前端「设置 → 连接」里填入 API 地址和 Token。API 地址留空时，前端会通过当前站点的 `/api` 代理访问后端。
 
-Orange Pi Zero 3 等局域网设备部署时，使用：
+Orange Pi Zero 3 等局域网设备临时开发或调试时，使用：
 
 ```bash
 python start.py --lan --no-browser
 ```
 
 `--lan` 会绑定 `0.0.0.0`，启动日志会打印 `127.0.0.1` 和局域网 IP 访问地址。局域网访问建议打开 `http://<OrangePi局域网IP>:5173`，并让前端 API 地址保持留空；如需跨源直连 `http://<OrangePi局域网IP>:8000`，在 `backend/.env` 配置 `CORS_ALLOWED_ORIGINS=http://<OrangePi局域网IP>:5173`。
+
+生产部署不运行 Vite。先构建前端，再由后端直接托管 `frontend/dist`：
+
+```bash
+chmod +x ./start-prod.sh ./update-prod.sh
+cd frontend && npm run build && cd ..
+./start-prod.sh
+```
+
+生产模式访问后端端口，例如 `http://<OrangePi局域网IP>:8000`。后续在部署端快速更新：
+
+```bash
+cd /opt/Maker-Stash
+./update-prod.sh
+```
+
+如果部署端已启用 `maker-stash.service` 自启动，`update-prod.sh` 会通过 systemd 重启生产服务；执行时可能需要输入 sudo 密码。
 
 端口也可以写入项目根目录的 `start.toml`：
 
