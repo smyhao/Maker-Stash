@@ -47,6 +47,7 @@ const pdfPreviewUrl = ref<string | null>(null)
 let media: MediaQueryList | null = null
 let slotDetailRequest = 0
 let pickerRequest = 0
+let messageTimer: number | null = null
 
 const PRESET_COLORS: Record<string, string> = {
   sage: '#5F7F67',
@@ -78,8 +79,16 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   media?.removeEventListener('change', updateMobile)
+  clearMessageTimer()
   closePdfPreview()
 })
+
+function clearMessageTimer() {
+  if (messageTimer) {
+    window.clearTimeout(messageTimer)
+    messageTimer = null
+  }
+}
 
 watch(
   () => store.locations,
@@ -90,6 +99,15 @@ watch(
   },
   { immediate: true },
 )
+
+watch(message, (value) => {
+  clearMessageTimer()
+  if (!value) return
+  messageTimer = window.setTimeout(() => {
+    message.value = null
+    messageTimer = null
+  }, 2000)
+})
 
 async function loadBoard(location: LocationNode) {
   boardLoading.value = true
@@ -356,6 +374,24 @@ async function confirmArrange() {
   }
 }
 
+async function removeSelectedFromSlot() {
+  if (!board.value || !selectedSlot.value?.item || isMobile.value || arranging.value) return
+  const item = selectedSlot.value.item
+  const slotKey = selectedSlot.value.location.slot_key
+  busy.value = true
+  try {
+    await moveItem(item.code, null, null, `移出格位 ${slotKey}`)
+    await loadBoard(board.value.container)
+    await store.refreshStats()
+    selectedSlot.value = null
+    message.value = { type: 'success', text: `${item.name} 已移出格位` }
+  } catch (error) {
+    message.value = { type: 'error', text: error instanceof Error ? error.message : '移出格位失败' }
+  } finally {
+    busy.value = false
+  }
+}
+
 async function placeSelectedItem(slot: ContainerBoardSlot) {
   if (!store.selectedItem || slot.item || isMobile.value) return
   busy.value = true
@@ -481,6 +517,9 @@ async function placePickedItem(item: Item) {
                 {{ arranging ? '整理中' : '整理模式' }}
               </button>
               <button class="h-9 rounded-xl border border-line px-3 text-[13px]" @click="openContainer('edit', board.container)">编辑布局</button>
+              <button class="grid h-9 w-9 place-items-center rounded-xl border border-red-200 text-red-600" title="删除收纳盒" @click="emit('delete', board.container)">
+                <Trash2 :size="15" />
+              </button>
             </div>
           </div>
           <div v-if="boardLoading" class="py-16 text-center text-[14px] text-muted">正在加载格位...</div>
@@ -568,6 +607,14 @@ async function placePickedItem(item: Item) {
             </div>
             <div v-else class="mt-2 text-[14px] text-muted">空格位</div>
             <button class="mt-3 h-9 w-full rounded-xl border border-line text-[13px] text-green" @click="printLocationLabels(actionSlot.location)">打印此格标签</button>
+            <button
+              v-if="!isMobile && !arranging && selectedSlot?.item && selectedSlot.location.id === actionSlot.location.id"
+              :disabled="busy"
+              class="mt-3 h-9 w-full rounded-xl border border-red-200 text-[13px] text-red-600 disabled:opacity-50"
+              @click="removeSelectedFromSlot"
+            >
+              移出格位
+            </button>
           </div>
           <template v-if="!arranging && selectedSlot?.item">
             <div v-if="slotDetailLoading" class="mt-4 rounded-xl border border-line px-3 py-4 text-[13px] text-muted">正在加载物品详情...</div>

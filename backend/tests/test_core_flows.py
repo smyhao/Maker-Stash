@@ -1288,6 +1288,43 @@ def test_slot_occupancy_swap_and_resize_protection() -> None:
     assert len(client.get(f"/api/locations/{container['id']}/board").json()["data"]["slots"]) == 2
 
 
+def test_item_can_move_out_of_slot_and_empty_container_can_be_deleted() -> None:
+    client = TestClient(create_app())
+    container = client.post(
+        "/api/locations/containers",
+        json={"name": "可删除盒", "code": "DELBOX", "parent_code": "WS", "layout_type": "row", "layout_columns": 2},
+    ).json()["data"]
+    item = client.post(
+        "/api/items",
+        json={"name": "待移出物品", "category": "tools", "location_code": "WS.DELBOX.01"},
+    ).json()["data"]
+    archived_item = client.post(
+        "/api/items",
+        json={"name": "已归档格位物品", "category": "tools", "location_code": "WS.DELBOX.02"},
+    ).json()["data"]
+    assert client.delete(f"/api/items/{archived_item['code']}").status_code == 200
+
+    occupied_delete = client.delete(f"/api/locations/{container['id']}")
+    assert occupied_delete.status_code == 400
+    assert occupied_delete.json()["error"]["code"] == "LOCATION_NOT_EMPTY"
+
+    moved = client.post(f"/api/items/{item['code']}/move", json={"location_code": None, "location_text": None})
+    assert moved.status_code == 200
+    assert moved.json()["data"]["location_id"] is None
+    assert moved.json()["data"]["location_display"] is None
+    board = client.get(f"/api/locations/{container['id']}/board").json()["data"]
+    assert board["slots"][0]["item"] is None
+
+    deleted = client.delete(f"/api/locations/{container['id']}")
+    assert deleted.status_code == 200
+    assert client.get("/api/locations/by-code/WS.DELBOX").status_code == 404
+    assert client.get("/api/locations/by-code/WS.DELBOX.01").status_code == 404
+    with SessionLocal() as db:
+        archived = db.scalar(select(Item).where(Item.code == archived_item["code"]))
+        assert archived is not None
+        assert archived.location_id is None
+
+
 def test_search_with_filters_and_rich_results() -> None:
     client = TestClient(create_app())
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError, NotFoundError
@@ -317,14 +317,32 @@ class LocationService:
 
     def delete(self, location_id: int) -> None:
         location = self.get(location_id)
-        has_child = self.db.scalar(select(Location.id).where(Location.parent_id == location.id))
-        if has_child:
+        children = list(self.db.scalars(select(Location).where(Location.parent_id == location.id)))
+        if children and (not location.layout_type or any(not child.is_slot for child in children)):
             raise AppError("LOCATION_NOT_EMPTY", "位置存在子位置，不能删除")
+        child_ids = [child.id for child in children]
+        delete_location_ids = [location.id, *child_ids]
+        has_slot_item = self.db.scalar(
+            select(Item.id).where(
+                Item.location_id.in_(child_ids or [-1]),
+                Item.is_archived.is_(False),
+            )
+        )
+        if has_slot_item:
+            raise AppError("LOCATION_NOT_EMPTY", "收纳盒格位下还有物品，不能删除")
         has_item = self.db.scalar(
             select(Item.id).where(Item.location_id == location.id, Item.is_archived.is_(False))
         )
         if has_item:
             raise AppError("LOCATION_NOT_EMPTY", "位置下还有物品，不能删除")
+        self.db.execute(
+            update(Item)
+            .where(Item.location_id.in_(delete_location_ids), Item.is_archived.is_(True))
+            .values(location_id=None)
+        )
+        for child in children:
+            self.db.delete(child)
+        self.db.flush()
         self.db.delete(location)
         self.db.commit()
 

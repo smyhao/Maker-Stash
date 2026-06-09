@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Grid2X2, ListFilter, ListTodo, Plus, QrCode, SlidersHorizontal, X } from 'lucide-vue-next'
 
@@ -54,6 +54,7 @@ const searchFocused = ref(false)
 const searchSuggestions = ref<Item[]>([])
 const searchLoading = ref(false)
 let searchTimer: number | null = null
+let noticeTimer: number | null = null
 let searchRequest = 0
 
 const screenMode = computed<ScreenMode>(() => {
@@ -93,14 +94,33 @@ watch(
   { immediate: true },
 )
 
-function showNotice(type: 'error' | 'success', message: string) {
-  notice.value = { type, message }
+function clearNoticeTimer() {
+  if (noticeTimer) {
+    window.clearTimeout(noticeTimer)
+    noticeTimer = null
+  }
 }
+
+function clearNotice() {
+  clearNoticeTimer()
+  notice.value = null
+}
+
+function showNotice(type: 'error' | 'success', message: string) {
+  clearNoticeTimer()
+  notice.value = { type, message }
+  noticeTimer = window.setTimeout(() => {
+    notice.value = null
+    noticeTimer = null
+  }, 2000)
+}
+
+onBeforeUnmount(clearNoticeTimer)
 
 async function runBusy(action: () => Promise<void>) {
   busy.value = true
   try {
-    notice.value = null
+    clearNotice()
     await action()
   } catch (error) {
     showNotice('error', error instanceof Error ? error.message : '操作失败')
